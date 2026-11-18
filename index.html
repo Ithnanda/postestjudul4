@@ -1,0 +1,3695 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Posttest Judul 4</title>
+    <link rel="icon" type="image/png" href="logo-ltd.png">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        ubuntu: {
+                            orange: '#6c8ebf',
+                            aubergine: '#1e2636',
+                            mid: '#253042',
+                            light: '#334155',
+                            dark: '#141b26'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        *, input, textarea, pre, code, .font-mono {
+            font-variant-ligatures: none !important;
+            font-feature-settings: "liga" 0, "calt" 0, "dlig" 0 !important;
+        }
+        body {
+            background-color: #131822;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #161d2a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .ubuntu-terminal-bg {
+            background-color: #18202c;
+        }
+        .terminal-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 18px;
+            background-color: #6ee7b7;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(108, 142, 191, 0.45); }
+            50% { border-color: rgba(108, 142, 191, 0.95); }
+        }
+        .active-task-glow {
+            animation: pulse-border 2s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-ubuntu-orange selection:text-white">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="bg-gray-900 border-b border-gray-800 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+            <!-- Brand Logo -->
+            <div class="flex items-center space-x-3">
+                <img src="logo-ltd.png" alt="Logo LTD" class="w-10 h-10 rounded-full object-contain bg-gray-950 border border-gray-700 p-0.5 shrink-0">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="font-bold text-lg tracking-tight text-white">Posttest Judul 4</h1>
+                        <span class="hidden sm:inline-block px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-ubuntu-orange/20 text-ubuntu-orange border border-ubuntu-orange/30 rounded-full">3 Studi Kasus &bull; 10 Task Runtut</span>
+                    </div>
+                    <p class="text-xs text-gray-400">Laboratorium Teknik Digital - Praktikum Sistem Operasi</p>
+                </div>
+            </div>
+
+            <!-- Sound FX Toggle & Role Switcher Tabs -->
+            <div class="flex items-center space-x-2">
+                <button id="btnToggleSound" type="button" onclick="toggleSoundFx()" title="Aktifkan/Matikan Efek Suara Ketikan"
+                    class="px-3 py-1.5 rounded-xl bg-gray-950 hover:bg-gray-800 border border-gray-800 text-xs font-medium text-emerald-300 transition flex items-center space-x-1.5">
+                    <i id="soundFxIcon" class="fa-solid fa-volume-high"></i>
+                    <span id="soundFxLabel" class="hidden md:inline">Suara: ON</span>
+                </button>
+
+                <div class="flex items-center space-x-1.5 bg-gray-950 p-1 rounded-xl border border-gray-800">
+                    <button id="navBtnPraktikan" onclick="switchPortal('praktikan')" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-2 bg-ubuntu-orange text-white shadow">
+                        <i class="fa-solid fa-terminal"></i>
+                        <span>Portal Praktikan</span>
+                    </button>
+                    <button id="navBtnAdmin" onclick="switchPortal('admin')" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-2 text-gray-400 hover:text-white">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span>Portal Admin</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- NOTIFICATION TOAST -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- MODAL KONFIRMASI / HASIL POST-TEST -->
+    <div id="customModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+        <div class="bg-gray-900 border border-gray-700 rounded-2xl max-w-md w-full p-6 shadow-2xl transform transition-all">
+            <div id="modalIcon" class="w-14 h-14 rounded-2xl bg-ubuntu-orange/20 text-ubuntu-orange flex items-center justify-center mx-auto mb-4 text-2xl">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h3 id="modalTitle" class="text-xl font-bold text-center text-white mb-2">Judul Modal</h3>
+            <div id="modalBody" class="text-sm text-gray-300 text-center space-y-3 mb-6"></div>
+            <div id="modalActions" class="flex items-center justify-center space-x-3">
+                <button onclick="closeModal()" class="px-5 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-medium transition">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ========================================== -->
+        <!-- 1. PORTAL PRAKTIKAN: LOGIN VIEW            -->
+        <!-- ========================================== -->
+        <section id="viewPraktikanLogin" class="max-w-4xl mx-auto my-4">
+            <div class="grid grid-cols-1 lg:grid-cols-12 bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
+                <!-- Left Banner: Info Umum Post-Test -->
+                <div class="lg:col-span-5 bg-ubuntu-aubergine p-6 sm:p-8 flex flex-col justify-between relative overflow-hidden border-b lg:border-b-0 lg:border-r border-gray-800">
+                    <div class="relative z-10">
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-ubuntu-orange border border-white/10 inline-flex items-center space-x-1.5 mb-4">
+                            <i class="fa-solid fa-terminal"></i>
+                            <span>HOTS Linux Case Study</span>
+                        </span>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold text-white leading-tight mb-3">Post-Test Praktikum Sistem Operasi</h2>
+                        <p class="text-sm text-gray-300 leading-relaxed mb-6">
+                            Pilih 1 dari 3 Studi Kasus HOTS dan selesaikan 5 Level (10 Task berurutan) menggunakan perintah dasar & shell scripting di Terminal Ubuntu.
+                        </p>
+
+                        <!-- Petunjuk Pelaksanaan Box -->
+                        <div class="bg-gray-900/80 rounded-xl p-4 border border-white/10 space-y-3">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-ubuntu-orange flex items-center space-x-1.5">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span>Petunjuk Pengerjaan</span>
+                            </h3>
+                            <ul class="space-y-2 text-xs text-gray-300 list-disc list-inside leading-relaxed">
+                                <li>Masukkan <strong>Nama Lengkap</strong>, <strong>NPM</strong>, dan pilih <strong>Kelas</strong> Anda.</li>
+                                <li>Masukkan <strong>Token Kelas</strong> yang diberikan oleh Asisten Praktikum.</li>
+                                <li>Kerjakan setiap misi secara berurutan di Terminal Ubuntu lalu klik <strong>Selesai &amp; Kumpulkan</strong>.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="relative z-10 mt-6 pt-4 border-t border-white/10 text-xs text-gray-400 flex items-center space-x-2">
+                        <i class="fa-solid fa-shield-halved text-ubuntu-orange"></i>
+                        <span>Sesi pengerjaan tersimpan otomatis di perangkat Anda.</span>
+                    </div>
+                </div>
+
+                <!-- Right Form: Form Masuk Praktikan -->
+                <div class="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-center">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold text-white">Masuk Sesi Post-Test</h3>
+                        <p class="text-xs sm:text-sm text-gray-400 mt-1">Masukkan identitas praktikan dan token kelas yang diberikan oleh Asisten Praktikum.</p>
+                    </div>
+
+                    <form id="formLoginPraktikan" onsubmit="handlePraktikanLogin(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Nama Lengkap Praktikan</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-user absolute left-3.5 top-3 text-gray-500 text-sm"></i>
+                                <input type="text" id="inputNama" required placeholder="Masukkan nama lengkap Anda"
+                                    class="w-full pl-10 pr-4 py-2.5 bg-gray-950 border border-gray-800 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:border-ubuntu-orange transition">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">NPM (Nomor Pokok Mahasiswa)</label>
+                                <div class="relative">
+                                    <i class="fa-solid fa-id-card absolute left-3.5 top-3 text-gray-500 text-sm"></i>
+                                    <input type="text" id="inputNpm" required placeholder="Masukkan NPM Anda"
+                                        class="w-full pl-10 pr-4 py-2.5 bg-gray-950 border border-gray-800 rounded-xl text-sm text-white font-mono placeholder-gray-600 focus:outline-none focus:border-ubuntu-orange transition">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Pilih Kelas</label>
+                                <div class="relative">
+                                    <i class="fa-solid fa-users-rectangle absolute left-3.5 top-3 text-gray-500 text-sm"></i>
+                                    <select id="inputKelas" required onchange="syncTokenHelperSelection()"
+                                        class="w-full pl-10 pr-4 py-2.5 bg-gray-950 border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-ubuntu-orange transition">
+                                        <option value="A">Kelas A</option>
+                                        <option value="B">Kelas B</option>
+                                        <option value="C">Kelas C</option>
+                                        <option value="D">Kelas D</option>
+                                        <option value="E">Kelas E</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Token Kelas</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-lock absolute left-3.5 top-3 text-gray-500 text-sm"></i>
+                                <input type="text" id="inputToken" required placeholder="Masukkan kode token kelas..."
+                                    class="w-full pl-10 pr-4 py-2.5 bg-gray-950 border border-gray-800 rounded-xl text-sm text-ubuntu-orange font-mono font-bold uppercase placeholder-gray-600 focus:outline-none focus:border-ubuntu-orange transition">
+                            </div>
+                            <p class="text-[11px] text-gray-500 mt-1">Hubungi Asisten Praktikum untuk mendapatkan kode token kelas Anda.</p>
+                        </div>
+
+                        <div class="pt-2">
+                            <button type="submit"
+                                class="w-full py-3 px-5 rounded-xl bg-ubuntu-orange hover:bg-[#5a7cad] text-white font-semibold text-sm shadow-md transition flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-rocket"></i>
+                                <span>Masuk & Pilih Paket Studi Kasus</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 1B. PORTAL PRAKTIKAN: PILIH PAKET SOAL     -->
+        <!-- ========================================== -->
+        <section id="viewPraktikanSelectQuest" class="hidden max-w-6xl mx-auto my-4 space-y-6">
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-2 mb-1">
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-ubuntu-orange/20 text-ubuntu-orange border border-ubuntu-orange/30">Tahap Pemilihan Kasus</span>
+                        <span id="selectQuestUserBadge" class="text-xs font-mono text-gray-400"></span>
+                    </div>
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-white">Pilih 1 dari 3 Paket Studi Kasus HOTS</h2>
+                    <p class="text-xs sm:text-sm text-gray-400 mt-1">
+                        Setiap paket terdiri dari <strong>5 Level (10 Task Runtut)</strong>. Baca studi kasus dengan teliti—instruksi disajikan dalam bentuk narasi masalah tanpa membocorkan nama perintah Linux.
+                    </p>
+                </div>
+                <button onclick="logoutPraktikan()" class="self-start md:self-auto px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold transition flex items-center space-x-2">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span>Kembali ke Login</span>
+                </button>
+            </div>
+
+            <div id="questPackageGrid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Di-render via JS -->
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 2. PORTAL PRAKTIKAN: GAMEPLAY & TERMINAL   -->
+        <!-- ========================================== -->
+        <section id="viewPraktikanGame" class="hidden space-y-5">
+            <!-- Top Gamification Status Bar -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <!-- User Info -->
+                    <div class="flex items-center space-x-3.5">
+                        <div class="w-12 h-12 rounded-xl bg-ubuntu-mid border border-ubuntu-light flex items-center justify-center text-ubuntu-orange font-bold text-lg">
+                            <i class="fa-solid fa-user-astronaut"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center flex-wrap gap-2">
+                                <h2 id="hudNama" class="font-bold text-white text-base">Nama Praktikan</h2>
+                                <span id="hudKelas" class="px-2 py-0.5 text-xs font-bold rounded-md bg-ubuntu-orange/20 text-ubuntu-orange border border-ubuntu-orange/30">Kelas A</span>
+                                <span id="hudPaketBadge" class="px-2 py-0.5 text-xs font-mono font-semibold rounded-md bg-slate-500/20 text-slate-300 border border-slate-500/30">Soal 1</span>
+                            </div>
+                            <p class="text-xs text-gray-400 font-mono mt-0.5">NPM: <span id="hudNpm">2315061000</span> | Dir: <span id="hudCwd" class="text-emerald-400">~</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Progress & Real-time Score HUD -->
+                    <div class="flex-1 max-w-xl mx-auto w-full bg-gray-950/80 border border-gray-800 rounded-xl p-3">
+                        <div class="flex items-center justify-between text-xs mb-1.5">
+                            <span class="text-gray-400 font-medium">Progress Runtut: <strong id="hudTaskCount" class="text-white font-mono">0/10 Task</strong></span>
+                            <span id="hudStatusText" class="text-amber-400 font-semibold">Belum Post-Test (0 Poin)</span>
+                        </div>
+                        <div class="w-full h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div id="hudProgressBar" class="h-full bg-ubuntu-orange transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Score Badge & Submit Action -->
+                    <div class="flex items-center justify-between lg:justify-end space-x-2.5">
+                        <div class="bg-gray-950 border border-gray-800 px-3.5 py-2 rounded-xl text-center">
+                            <span class="block text-[10px] uppercase tracking-wider text-gray-400">Estimasi Nilai</span>
+                            <span id="hudCurrentScore" class="font-mono font-extrabold text-xl text-ubuntu-orange">0</span>
+                        </div>
+
+                        <button onclick="openChangeQuestConfirmation()" title="Ganti Paket Soal" class="px-3 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 font-medium text-xs transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-layer-group text-ubuntu-orange"></i>
+                            <span class="hidden sm:inline">Ganti Soal</span>
+                        </button>
+
+                        <button onclick="confirmSubmitPostTest()" class="px-4 py-2.5 rounded-xl bg-[#4f8a75] hover:bg-[#437864] text-white font-semibold text-xs sm:text-sm shadow-md transition flex items-center space-x-2">
+                            <i class="fa-solid fa-flag-checkered"></i>
+                            <span>Selesai & Kumpulkan</span>
+                        </button>
+
+                        <button onclick="logoutPraktikan()" title="Keluar Sesi" class="p-2.5 rounded-xl bg-gray-800 hover:bg-red-900/50 text-gray-400 hover:text-red-300 transition">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Level Stepper Bar (Level 1 - 5) -->
+                <div id="levelStepperContainer" class="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4 pt-4 border-t border-gray-800">
+                    <!-- Rendered via JS -->
+                </div>
+            </div>
+
+            <!-- Main Split Workspace: Left (Tasks & Narrative) | Right (Ubuntu Terminal) -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                
+                <!-- LEFT PANEL: LEVEL MISSION & SEQUENTIAL TASK CHECKLIST (5 Cols) -->
+                <div class="lg:col-span-5 bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl flex flex-col h-[540px] lg:h-[620px]">
+                    <!-- Level Header -->
+                    <div class="bg-ubuntu-aubergine p-4 border-b border-gray-800 shrink-0">
+                        <div class="flex items-center justify-between mb-1">
+                            <span id="activeLevelBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-ubuntu-orange text-white">LEVEL 1 / 5</span>
+                            <span id="activeLevelRef" class="text-[11px] text-amber-300 font-mono flex items-center space-x-1">
+                                <i class="fa-solid fa-lock-open text-[10px]"></i>
+                                <span>Sequential Lock Aktif</span>
+                            </span>
+                        </div>
+                        <h3 id="activeLevelTitle" class="text-base sm:text-lg font-bold text-white">Judul Level</h3>
+                        <p id="activeLevelDesc" class="text-xs text-gray-300 mt-1 leading-relaxed"></p>
+                    </div>
+
+                    <!-- Scrollable Task List & VFS Inspector Container -->
+                    <div id="taskScrollContainer" class="p-4 space-y-3 flex-1 min-h-0 overflow-y-auto">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center space-x-1.5">
+                                <i class="fa-solid fa-list-ol text-ubuntu-orange"></i>
+                                <span>Daftar Misi Runtut (Wajib Berurutan)</span>
+                            </h4>
+                            <span class="text-[11px] text-gray-500 italic">Mode HOTS (Tanpa Bocoran Command)</span>
+                        </div>
+
+                        <div id="taskListContainer" class="space-y-3">
+                            <!-- Rendered via JS -->
+                        </div>
+
+                        <!-- Dynamic Workspace Inspector (Files in Current Directory) -->
+                        <div class="mt-4 bg-gray-950/90 border border-gray-800 rounded-xl p-3.5">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-semibold text-gray-300 flex items-center space-x-1.5">
+                                    <i class="fa-solid fa-folder-tree text-amber-400"></i>
+                                    <span>Inspektor Berkas Direktori Aktif (<code id="inspectorDirName" class="text-emerald-400">~</code>)</span>
+                                </span>
+                                <span class="text-[10px] text-gray-500 font-mono">Real-time VFS</span>
+                            </div>
+                            <div id="vfsFileBadges" class="flex flex-wrap gap-1.5 text-[11px] font-mono">
+                                <!-- Rendered via JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Level Navigation Footer -->
+                    <div class="px-4 py-3 bg-gray-950 border-t border-gray-800 flex items-center justify-between shrink-0">
+                        <button id="btnPrevLevel" onclick="changeLevel(-1)" class="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-300 disabled:opacity-40 transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-chevron-left"></i>
+                            <span>Level Sebelumnya</span>
+                        </button>
+                        <button id="btnNextLevel" onclick="changeLevel(1)" class="px-3 py-1.5 rounded-lg bg-ubuntu-orange/20 hover:bg-ubuntu-orange/30 text-ubuntu-orange border border-ubuntu-orange/30 text-xs font-medium disabled:opacity-40 transition flex items-center space-x-1.5">
+                            <span>Level Selanjutnya</span>
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- RIGHT PANEL: UBUNTU INTERACTIVE TERMINAL & NANO SIMULATOR (7 Cols) -->
+                <div class="lg:col-span-7 flex flex-col rounded-2xl overflow-hidden border border-gray-700 shadow-2xl bg-[#18202c] h-[620px] relative">
+                    
+                    <!-- Ubuntu Terminal Window Title Bar -->
+                    <div class="bg-[#232d3d] px-4 py-2.5 flex items-center justify-between border-b border-black/30 select-none">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-red-400/80 inline-block"></span>
+                            <span class="w-3 h-3 rounded-full bg-amber-400/80 inline-block"></span>
+                            <span class="w-3 h-3 rounded-full bg-emerald-400/80 inline-block"></span>
+                        </div>
+                        <div id="terminalWindowTitle" class="text-xs font-mono text-gray-200 flex items-center space-x-2">
+                            <i class="fa-solid fa-terminal text-ubuntu-orange"></i>
+                            <span id="terminalHeaderPath">praktikan@ubuntu-lab: ~</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="clearTerminal()" title="Bersihkan Layar (clear)" class="text-xs text-gray-400 hover:text-white px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 font-mono">
+                                clear
+                            </button>
+                            <button onclick="printHelpCommand()" title="Panduan Umum Terminal" class="text-xs text-gray-400 hover:text-white px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 font-mono">
+                                help
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- TERMINAL OUTPUT & INPUT AREA -->
+                    <div id="terminalScreen" onclick="focusTerminalInput(event)" class="ubuntu-terminal-bg flex-1 p-4 font-mono text-xs sm:text-sm overflow-y-auto space-y-2 cursor-text">
+                        <!-- Output lines injected via JS -->
+                        <div id="terminalOutput" class="space-y-1.5 break-words"></div>
+
+                        <!-- Active Command Prompt Line -->
+                        <form id="terminalForm" onsubmit="handleTerminalSubmit(event)" class="flex items-center space-x-1.5 pt-1">
+                            <span id="terminalPromptLabel" class="text-emerald-400 font-bold shrink-0">praktikan@ubuntu-lab:~$</span>
+                            <input type="text" id="terminalInput" autocomplete="off" spellcheck="false"
+                                class="flex-1 min-w-0 bg-transparent text-white focus:outline-none font-mono text-xs sm:text-sm"
+                                placeholder="Ketik perintah Linux Anda di sini...">
+                        </form>
+                    </div>
+
+                    <!-- Status Bar Terminal Footer -->
+                    <div class="bg-[#141b26] px-4 py-2 border-t border-white/10 flex items-center justify-between gap-2 text-[11px] font-mono text-gray-400">
+                        <div class="flex items-center space-x-3">
+                            <span><i class="fa-solid fa-circle text-[8px] text-emerald-400 mr-1"></i>Bash 5.1 (Ubuntu)</span>
+                            <span class="hidden sm:inline text-gray-500">|</span>
+                            <span class="hidden sm:inline text-gray-300">Gunakan <code class="text-ubuntu-orange">nano &lt;berkas&gt;</code> untuk menulis skrip shell</span>
+                        </div>
+                        <span class="text-gray-500">Tekan Enter untuk eksekusi</span>
+                    </div>
+
+                    <!-- ================================================= -->
+                    <!-- OVERLAY: GNU NANO EDITOR SIMULATOR                -->
+                    <!-- ================================================= -->
+                    <div id="nanoEditorOverlay" class="hidden absolute inset-0 z-30 bg-[#12131a] flex-col font-mono">
+                        <!-- Nano Header Bar -->
+                        <div class="bg-gray-200 text-gray-900 px-4 py-1 text-xs font-bold flex items-center justify-between">
+                            <span>GNU nano 6.2</span>
+                            <span id="nanoFileNameTitle">File: script.sh</span>
+                            <span id="nanoModifiedBadge" class="text-ubuntu-orange font-extrabold">Modified</span>
+                        </div>
+
+                        <!-- Nano Instruction / Task Guide Bar -->
+                        <div class="bg-gray-900 border-b border-gray-800 px-4 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div class="text-[11px] text-gray-300">
+                                <i class="fa-solid fa-circle-info text-ubuntu-orange mr-1"></i>
+                                <span id="nanoTaskInstruction">Tulis kode bash sesuai logika yang diminta pada narasi soal, lalu simpan dengan CTRL+X &rarr; Y &rarr; Enter.</span>
+                            </div>
+                        </div>
+
+                        <!-- Nano Textarea -->
+                        <textarea id="nanoTextarea" spellcheck="false"
+                            class="flex-1 w-full bg-[#12131a] text-emerald-300 p-4 font-mono text-xs sm:text-sm focus:outline-none resize-none leading-relaxed"
+                            placeholder="#!/bin/bash&#10;# Tulis logika skrip shell Anda di sini..."></textarea>
+
+                        <!-- Nano Bottom Shortcut Bar (Ctrl+X, Y, Enter Simulation) -->
+                        <div class="bg-gray-950 border-t border-gray-800 p-3 space-y-2">
+                            <div id="nanoSavePromptBar" class="hidden bg-amber-500/20 border border-amber-500/40 rounded-lg px-3 py-2 flex items-center justify-between text-xs">
+                                <span class="text-amber-200 font-bold">Save modified buffer? (Tekan Y lalu Enter untuk menyimpan)</span>
+                                <div class="flex items-center space-x-2">
+                                    <button type="button" onclick="confirmNanoSave()" class="px-3 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold">
+                                        Y &rarr; Enter (Simpan)
+                                    </button>
+                                    <button type="button" onclick="closeNanoWithoutSaving()" class="px-3 py-1 rounded bg-red-600/80 hover:bg-red-600 text-white">
+                                        N (Batal Simpan)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <div class="flex items-center space-x-3">
+                                    <span class="inline-flex items-center"><span class="bg-gray-200 text-black px-1.5 py-0.5 font-bold mr-1">^G</span> Help</span>
+                                    <span class="inline-flex items-center"><span class="bg-gray-200 text-black px-1.5 py-0.5 font-bold mr-1">^O</span> WriteOut</span>
+                                    <span class="inline-flex items-center"><span class="bg-gray-200 text-black px-1.5 py-0.5 font-bold mr-1">^X</span> Exit</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <button type="button" onclick="triggerNanoCtrlX()" class="px-3.5 py-1.5 rounded-lg bg-ubuntu-orange hover:bg-[#5a7cad] text-white font-sans font-semibold text-xs shadow transition flex items-center space-x-1.5">
+                                        <span>Simpan & Keluar (CTRL+X &rarr; Y &rarr; Enter)</span>
+                                    </button>
+                                    <button type="button" onclick="closeNanoWithoutSaving()" class="px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 font-sans text-xs transition">
+                                        Batal
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 3. PORTAL ADMIN: LOGIN VIEW                -->
+        <!-- ========================================== -->
+        <section id="viewAdminLogin" class="hidden max-w-md mx-auto my-10">
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
+                <div class="w-12 h-12 rounded-xl bg-ubuntu-orange/20 border border-ubuntu-orange/40 flex items-center justify-center text-ubuntu-orange text-xl mb-4">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <h2 class="text-xl font-bold text-white">Login Admin / Asisten</h2>
+                <p class="text-xs text-gray-400 mt-1 mb-6">Kelola token akses Kelas A, B, C, D, E dan pantau nilai post-test praktikan.</p>
+
+                <form onsubmit="handleAdminLogin(event)" autocomplete="off" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Username Admin</label>
+                        <input type="text" id="adminUser" placeholder="Masukkan username..." autocomplete="off" required
+                            class="w-full px-4 py-2.5 bg-gray-950 border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-ubuntu-orange">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Password Admin</label>
+                        <input type="password" id="adminPass" placeholder="Masukkan password..." autocomplete="new-password" required
+                            class="w-full px-4 py-2.5 bg-gray-950 border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-ubuntu-orange">
+                    </div>
+                    <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-ubuntu-orange hover:bg-[#5a7cad] text-white font-semibold text-sm shadow-lg shadow-ubuntu-orange/20 transition">
+                        Masuk Dashboard Admin
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 4. PORTAL ADMIN: DASHBOARD VIEW            -->
+        <!-- ========================================== -->
+        <section id="viewAdminDashboard" class="hidden space-y-6">
+            <!-- Top Admin Header -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Mode Asisten Praktikum</span>
+                        <span class="text-xs text-gray-500 font-mono">Modul 4: Shell Script & Crontab</span>
+                    </div>
+                    <h2 class="text-xl font-bold text-white mt-1">Dashboard Manajemen Token Kelas & Nilai Praktikan</h2>
+                </div>
+                <div class="flex items-center space-x-2.5">
+                    <button onclick="exportGradesCSV()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition flex items-center space-x-1.5 shadow">
+                        <i class="fa-solid fa-file-csv"></i>
+                        <span>Export CSV</span>
+                    </button>
+                    <button onclick="resetDemoData()" class="px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>Reset Data</span>
+                    </button>
+                    <button onclick="logoutAdmin()" class="px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-medium transition">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistik Ringkas -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl">
+                    <span class="text-xs text-gray-400">Total Praktikan Terdaftar</span>
+                    <div class="flex items-baseline justify-between mt-1">
+                        <span id="statTotalStudents" class="text-2xl font-extrabold text-white font-mono">0</span>
+                        <span class="text-xs text-gray-500">Kelas A - E</span>
+                    </div>
+                </div>
+                <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl">
+                    <span class="text-xs text-gray-400">Berhasil Semua Kasus (Nilai 80)</span>
+                    <div class="flex items-baseline justify-between mt-1">
+                        <span id="statScore80" class="text-2xl font-extrabold text-emerald-400 font-mono">0</span>
+                        <span class="text-xs text-emerald-500/80 font-mono">100% Task</span>
+                    </div>
+                </div>
+                <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl">
+                    <span class="text-xs text-gray-400">Sebagian Kasus (Nilai 60 - 76)</span>
+                    <div class="flex items-baseline justify-between mt-1">
+                        <span id="statScorePartial" class="text-2xl font-extrabold text-amber-400 font-mono">0</span>
+                        <span class="text-xs text-amber-500/80 font-mono">Parsial</span>
+                    </div>
+                </div>
+                <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl">
+                    <span class="text-xs text-gray-400">Tidak Post-Test (Nilai 0)</span>
+                    <div class="flex items-baseline justify-between mt-1">
+                        <span id="statScoreZero" class="text-2xl font-extrabold text-red-400 font-mono">0</span>
+                        <span class="text-xs text-red-500/80 font-mono">0 Task</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION: MANAJEMEN TOKEN 5 KELAS (A, B, C, D, E) -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-key text-ubuntu-orange"></i>
+                            <span>Pengaturan Token Kelas (Kelas A, B, C, D, dan E)</span>
+                        </h3>
+                        <p class="text-xs text-gray-400">Atur kode token unik atau buka/tutup akses post-test untuk masing-masing kelas.</p>
+                    </div>
+                    <button onclick="randomizeAllTokens()" class="self-start sm:self-auto px-3 py-1.5 rounded-lg bg-ubuntu-orange/20 hover:bg-ubuntu-orange/30 text-ubuntu-orange border border-ubuntu-orange/30 text-xs font-semibold transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-dice"></i>
+                        <span>Acak Semua Token</span>
+                    </button>
+                </div>
+
+                <div id="adminTokenGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                    <!-- Di-render via JS untuk Kelas A, B, C, D, E -->
+                </div>
+            </div>
+
+            <!-- SECTION: TABEL DATA PRAKTIKAN & NILAI -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl space-y-4">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-graduation-cap text-ubuntu-orange"></i>
+                            <span>Daftar Nilai Post-Test Praktikan</span>
+                        </h3>
+                        <p class="text-xs text-gray-400">Range Nilai: <strong>0</strong> (Tidak Post-Test), <strong>60 - 76</strong> (Kurang dari seluruh kasus), <strong>80</strong> (Berhasil semua kasus).</p>
+                    </div>
+
+                    <!-- Filter Kelas & Pencarian -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Class Filter Pills -->
+                        <div id="adminClassFilterPills" class="flex items-center bg-gray-950 p-1 rounded-xl border border-gray-800 text-xs">
+                            <button onclick="setAdminClassFilter('ALL')" data-kelas="ALL" class="admin-filter-btn px-2.5 py-1 rounded-lg font-semibold bg-ubuntu-orange text-white">Semua</button>
+                            <button onclick="setAdminClassFilter('A')" data-kelas="A" class="admin-filter-btn px-2.5 py-1 rounded-lg font-medium text-gray-400 hover:text-white">A</button>
+                            <button onclick="setAdminClassFilter('B')" data-kelas="B" class="admin-filter-btn px-2.5 py-1 rounded-lg font-medium text-gray-400 hover:text-white">B</button>
+                            <button onclick="setAdminClassFilter('C')" data-kelas="C" class="admin-filter-btn px-2.5 py-1 rounded-lg font-medium text-gray-400 hover:text-white">C</button>
+                            <button onclick="setAdminClassFilter('D')" data-kelas="D" class="admin-filter-btn px-2.5 py-1 rounded-lg font-medium text-gray-400 hover:text-white">D</button>
+                            <button onclick="setAdminClassFilter('E')" data-kelas="E" class="admin-filter-btn px-2.5 py-1 rounded-lg font-medium text-gray-400 hover:text-white">E</button>
+                        </div>
+
+                        <!-- Search Input -->
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-500 text-xs"></i>
+                            <input type="text" id="adminSearchInput" oninput="renderAdminStudentTable()" placeholder="Cari Nama / NPM..."
+                                class="pl-8 pr-3 py-1.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white focus:outline-none focus:border-ubuntu-orange">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Tambah Praktikan Cepat (untuk absen / nilai awal 0) -->
+                <form onsubmit="handleAddStudentByAdmin(event)" class="bg-gray-950/70 border border-gray-800 rounded-xl p-3 flex flex-wrap items-center gap-2.5">
+                    <span class="text-xs font-semibold text-gray-400 mr-1"><i class="fa-solid fa-user-plus text-ubuntu-orange mr-1"></i>Tambah Praktikan:</span>
+                    <input type="text" id="newStudentNama" required placeholder="Nama Praktikan" class="px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-xs text-white focus:outline-none focus:border-ubuntu-orange flex-1 min-w-[150px]">
+                    <input type="text" id="newStudentNpm" required placeholder="NPM" class="px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-xs text-white font-mono focus:outline-none focus:border-ubuntu-orange w-36">
+                    <select id="newStudentKelas" class="px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-xs text-white focus:outline-none focus:border-ubuntu-orange">
+                        <option value="A">Kelas A</option>
+                        <option value="B">Kelas B</option>
+                        <option value="C">Kelas C</option>
+                        <option value="D">Kelas D</option>
+                        <option value="E">Kelas E</option>
+                    </select>
+                    <select id="newStudentPaket" class="px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-xs text-white focus:outline-none focus:border-ubuntu-orange">
+                        <option value="1">Soal 1 (Perpus)</option>
+                        <option value="2">Soal 2 (Absensi)</option>
+                        <option value="3">Soal 3 (Nilai)</option>
+                    </select>
+                    <select id="newStudentPreset" class="px-3 py-1.5 bg-gray-900 border border-gray-800 rounded-lg text-xs text-white focus:outline-none focus:border-ubuntu-orange">
+                        <option value="0">Belum Post-Test (Nilai 0)</option>
+                        <option value="6">Sebagian Selesai - 6/10 Task (Nilai 70)</option>
+                        <option value="10">Selesai Semua - 10/10 Task (Nilai 80)</option>
+                    </select>
+                    <button type="submit" class="px-3.5 py-1.5 rounded-lg bg-ubuntu-orange hover:bg-[#5a7cad] text-white text-xs font-semibold transition">
+                        + Tambah
+                    </button>
+                </form>
+
+                <!-- Tabel Praktikan -->
+                <div class="overflow-x-auto rounded-xl border border-gray-800">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-950 text-gray-400 text-[11px] uppercase tracking-wider border-b border-gray-800">
+                                <th class="py-3 px-4">No</th>
+                                <th class="py-3 px-4">Nama Praktikan</th>
+                                <th class="py-3 px-4">NPM</th>
+                                <th class="py-3 px-4 text-center">Kelas</th>
+                                <th class="py-3 px-4">Paket Soal</th>
+                                <th class="py-3 px-4">Progress Task</th>
+                                <th class="py-3 px-4">Status Post-Test</th>
+                                <th class="py-3 px-4 text-center">Nilai Akhir</th>
+                                <th class="py-3 px-4 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminStudentTableBody" class="divide-y divide-gray-800/70 text-xs sm:text-sm">
+                            <!-- Di-render via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SECTION KHUSUS ADMIN: KUNCI JAWABAN REFERENSI ASISTEN (SOAL 1, 2, 3) -->
+            <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-book-skull text-ubuntu-orange"></i>
+                            <span>Kunci Jawaban Referensi Asisten (Soal 1, Soal 2, & Soal 3)</span>
+                        </h3>
+                        <p class="text-xs text-gray-400">Hanya tampil di Portal Admin sebagai pedoman penilaian asisten praktikum.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs font-mono">
+                    <div class="bg-gray-950 border border-gray-800 rounded-xl p-3.5 overflow-x-auto">
+                        <div class="text-ubuntu-orange font-bold font-sans mb-2">Kunci Paket Soal 1: Perpustakaan</div>
+                        <pre class="text-emerald-300 leading-relaxed text-[11px]"># 1
+mkdir posttest_perpus && cd posttest_perpus
+# 2 (Bebas 5 buku format Judul:Penulis:Tahun)
+echo "Judul1:PenulisA:2020" > katalog.txt
+echo "Judul2:PenulisA:2021" >> katalog.txt
+echo "Judul3:PenulisB:2019" >> katalog.txt
+echo "Judul4:PenulisC:2022" >> katalog.txt
+echo "Judul5:PenulisD:2023" >> katalog.txt
+# 3
+sort katalog.txt > katalog_urut.txt
+# 4 (Filter salah satu penulis di katalog.txt)
+grep "PenulisA" katalog.txt > buku_penulis.txt
+# 5
+wc -l < katalog.txt > total_buku.txt
+# 6 (nano pinjam.sh)
+#!/bin/bash
+read -p "Judul buku yang dipinjam: " judul
+if grep -q "$judul" katalog.txt
+then
+    echo "$judul" >> pinjam.txt
+    echo "Peminjaman dicatat"
+else
+    echo "Buku tidak ditemukan"
+fi
+# 7
+chmod +x pinjam.sh
+./pinjam.sh   # 2x judul ada, 1x judul tidak ada
+# 8
+wc -l < pinjam.txt > jml_pinjam.txt
+# 9 (nano sisa.sh)
+#!/bin/bash
+total=$(cat total_buku.txt)
+pinjam=$(cat jml_pinjam.txt)
+sisa=$((total - pinjam))
+echo "Buku tersedia: $sisa"
+if [ $sisa -le 3 ]
+then
+    echo "Stok menipis"
+fi
+# 10
+chmod +x sisa.sh
+./sisa.sh | tee laporan_perpus.txt</pre>
+                    </div>
+
+                    <div class="bg-gray-950 border border-gray-800 rounded-xl p-3.5 overflow-x-auto">
+                        <div class="text-ubuntu-orange font-bold font-sans mb-2">Kunci Paket Soal 2: Absensi Workshop</div>
+                        <pre class="text-emerald-300 leading-relaxed text-[11px]"># 1
+mkdir posttest_absensi && cd posttest_absensi
+# 2 (Bebas 5 nama peserta siapa saja)
+echo "Peserta1" > peserta.txt
+echo "Peserta2" >> peserta.txt
+echo "Peserta3" >> peserta.txt
+echo "Peserta4" >> peserta.txt
+echo "Peserta5" >> peserta.txt
+# 3
+sort peserta.txt > peserta_urut.txt
+# 4
+wc -l < peserta_urut.txt > jumlah.txt
+# 5 (nano absen.sh)
+#!/bin/bash
+read -p "Masukkan nama: " nama
+echo "$nama" >> hadir.txt
+echo "Halo $nama, kehadiran Anda tercatat"
+# 6
+chmod +x absen.sh
+./absen.sh
+bash absen.sh
+# 7
+cat hadir.txt | tee hadir_backup.txt
+# 8 (nano cek.sh)
+#!/bin/bash
+jumlah=$(cat jumlah.txt)
+hadir=$(wc -l < hadir.txt)
+if [ $hadir -ge $jumlah ]
+then
+    echo "Absensi lengkap"
+else
+    echo "Belum lengkap, kurang $((jumlah - hadir)) orang"
+fi
+# 9
+chmod +x cek.sh
+./cek.sh > status.txt
+# 10
+ls -l > daftar_file.txt && cat status.txt</pre>
+                    </div>
+
+                    <div class="bg-gray-950 border border-gray-800 rounded-xl p-3.5 overflow-x-auto">
+                        <div class="text-ubuntu-orange font-bold font-sans mb-2">Kunci Paket Soal 3: Kalkulasi Nilai</div>
+                        <pre class="text-emerald-300 leading-relaxed text-[11px]"># 1
+mkdir posttest_nilai && cd posttest_nilai
+# 2-5 (nano nilai.sh)
+#!/bin/bash
+read -p "Nama: " nama
+read -p "Nilai Laporan: " laporan
+read -p "Nilai Posttest: " posttest
+read -p "Nilai Praktik: " praktik
+
+nilai=$((laporan * 30 / 100 + posttest * 30 / 100 + praktik * 40 / 100))
+echo "Nilai akhir $nama: $nilai"
+
+if [ $nilai -ge 85 ]
+then
+    grade="A"
+elif [ $nilai -ge 70 ]
+then
+    grade="B"
+else
+    grade="C"
+fi
+echo "Grade: $grade"
+echo "$nama:$nilai:$grade" >> rekap.txt
+# 6
+chmod +x nilai.sh
+./nilai.sh   # (3x)
+# 7
+sort rekap.txt > rekap_urut.txt
+# 8
+grep ":A$" rekap.txt > lulus_A.txt
+# 9
+wc -l < rekap.txt > total.txt
+# 10
+cat rekap_urut.txt | tee laporan_akhir.txt</pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-gray-800/80 bg-gray-950 py-4 mt-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-2">
+            <span>&copy; Laboratorium Teknik Digital - Jurusan Teknik Elektro | Praktikum Sistem Operasi</span>
+            <span class="font-mono">Post-Test Praktikum Sistem Operasi</span>
+        </div>
+    </footer>
+
+    <!-- ===================================================== -->
+    <!-- APPLICATION JAVASCRIPT LOGIC                          -->
+    <!-- ===================================================== -->
+    <script>
+        // =====================================================
+        // 1. DEFINISI 3 PAKET STUDI KASUS HOTS (MASING-MASING 5 LEVEL & 10 TASK RUNTUT)
+        //    TANPA BOCORAN NAMA COMMAND DI DALAM NARASI SOAL!
+        // =====================================================
+        const QUEST_PACKAGES = {
+            "1": {
+                id: "1",
+                code: "Soal 1",
+                name: "Sistem Otomasi Inventaris & Sirkulasi Perpustakaan",
+                icon: "fa-book-bookmark",
+                badgeColor: "bg-[#6c8ebf]",
+                workDir: "posttest_perpus",
+                summary: "Bangun sistem manajemen katalog buku perpustakaan, penyaringan penulis, layanan skrip peminjaman buku, serta pelaporan stok otomatis.",
+                levels: [
+                    {
+                        level: 1,
+                        title: "Inisialisasi Ruang Kerja & Basis Data Katalog",
+                        desc: "Siapkan ruang kerja khusus perpustakaan dan bangun basis data awal koleksi buku yang tersedia.",
+                        tasks: [
+                            {
+                                num: 1,
+                                id: "P1_T1",
+                                title: "Pembuatan & Perpindahan Ruang Kerja",
+                                desc: "Buatlah sebuah direktori kerja baru bernama `posttest_perpus` dan pastikan posisi kerja aktif Anda saat ini sudah berada di dalam direktori tersebut."
+                            },
+                            {
+                                num: 2,
+                                id: "P1_T2",
+                                title: "Penyusunan Basis Data Katalog Buku (Bebas 5 Buku)",
+                                desc: "Di dalam direktori kerja tersebut, buatlah berkas daftar buku bernama `katalog.txt` yang memuat minimal 5 baris data buku. Anda bebas menentukan judul, nama penulis, dan tahun terbit (4 digit angka), namun setiap baris wajib mengikuti format `Judul:Penulis:Tahun` (contoh: `Bumi:Tere Liye:2014`)."
+                            }
+                        ]
+                    },
+                    {
+                        level: 2,
+                        title: "Pengolahan & Penyaringan Data Katalog",
+                        desc: "Lakukan pengurutan indeks katalog, penyaringan buku berdasarkan penulis tertentu, dan rekapitulasi total koleksi.",
+                        tasks: [
+                            {
+                                num: 3,
+                                id: "P1_T3",
+                                title: "Pengurutan Katalog Berdasarkan Abjad",
+                                desc: "Susun ulang seluruh daftar buku yang ada di `katalog.txt` berdasarkan urutan abjad, lalu simpan hasilnya ke dalam berkas baru bernama `katalog_urut.txt`."
+                            },
+                            {
+                                num: 4,
+                                id: "P1_T4",
+                                title: "Penyaringan Koleksi Berdasarkan Penulis",
+                                desc: "Saring data dari `katalog.txt` khusus untuk buku-buku karya salah satu penulis yang telah Anda tuliskan di dalam `katalog.txt`, kemudian simpan hasil penyaringan tersebut ke berkas `buku_penulis.txt`."
+                            },
+                            {
+                                num: 5,
+                                id: "P1_T5",
+                                title: "Perhitungan Total Koleksi Buku",
+                                desc: "Hitung jumlah total baris buku yang terdaftar di dalam `katalog.txt` (hanya angkanya saja tanpa nama berkas) dan simpan angka hasil perhitungannya ke dalam berkas `total_buku.txt`."
+                            }
+                        ]
+                    },
+                    {
+                        level: 3,
+                        title: "Otomasi Pencatatan Peminjaman Buku",
+                        desc: "Rancang skrip validasi peminjaman buku terhadap katalog dan lakukan uji coba transaksi sirkulasi.",
+                        tasks: [
+                            {
+                                num: 6,
+                                id: "P1_T6",
+                                title: "Pembuatan Skrip Validasi Peminjaman (`pinjam.sh`)",
+                                desc: "Buatlah sebuah skrip shell bernama `pinjam.sh` yang meminta input pengguna dengan pesan `Judul buku yang dipinjam: `. Skrip harus memeriksa apakah judul tersebut terdaftar di dalam `katalog.txt`. Jika ditemukan, tambahkan judul buku tersebut ke baris baru di berkas `pinjam.txt` dan tampilkan pesan `Peminjaman dicatat`. Jika tidak ditemukan di katalog, tampilkan pesan `Buku tidak ditemukan`."
+                            },
+                            {
+                                num: 7,
+                                id: "P1_T7",
+                                title: "Perizinan & Uji Coba Transaksi Peminjaman (3 Kasus)",
+                                desc: "Berikan hak akses eksekusi pada berkas `pinjam.sh`, lalu jalankan skrip tersebut sebanyak 3 kali untuk simulasi peminjaman: 2 kali memasukkan judul buku yang memang terdaftar di `katalog.txt` Anda, dan 1 kali memasukkan judul buku bebas yang tidak ada di `katalog.txt`."
+                            }
+                        ]
+                    },
+                    {
+                        level: 4,
+                        title: "Kalkulasi Stok & Peringatan Inventaris",
+                        desc: "Hitung jumlah buku yang sedang keluar dan rancang skrip pemeriksa ketersediaan stok perpustakaan.",
+                        tasks: [
+                            {
+                                num: 8,
+                                id: "P1_T8",
+                                title: "Perhitungan Akumulasi Buku Dipinjam",
+                                desc: "Hitung jumlah baris buku yang telah berhasil dipinjam di dalam berkas `pinjam.txt` (hanya angkanya saja) dan simpan hasilnya ke berkas `jml_pinjam.txt`."
+                            },
+                            {
+                                num: 9,
+                                id: "P1_T9",
+                                title: "Pembuatan Skrip Evaluasi Sisa Stok (`sisa.sh`)",
+                                desc: "Buatlah skrip bernama `sisa.sh` yang membaca nilai dari `total_buku.txt` dan `jml_pinjam.txt`, lalu menghitung selisih stok buku yang masih tersedia. Tampilkan hasilnya dengan format `Buku tersedia: <jumlah_sisa>`. Tambahkan logika pemeriksaan: apabila sisa buku kurang dari atau sama dengan 3, tampilkan peringatan `Stok menipis`."
+                            }
+                        ]
+                    },
+                    {
+                        level: 5,
+                        title: "Pelaporan Akhir Sirkulasi Perpustakaan",
+                        desc: "Publikasikan laporan sisa stok buku ke layar sekaligus ke berkas arsip laporan.",
+                        tasks: [
+                            {
+                                num: 10,
+                                id: "P1_T10",
+                                title: "Eksekusi & Pencatatan Laporan Sirkulasi Serentak",
+                                desc: "Berikan izin eksekusi pada `sisa.sh`, kemudian jalankan skrip tersebut sedemikian rupa sehingga hasil keluarannya tampil langsung di layar terminal sekaligus tersimpan otomatis ke dalam berkas `laporan_perpus.txt` dalam satu rangkaian perintah."
+                            }
+                        ]
+                    }
+                ]
+            },
+
+            "2": {
+                id: "2",
+                code: "Soal 2",
+                name: "Sistem Pencatatan Kehadiran & Audit Peserta Workshop",
+                icon: "fa-clipboard-user",
+                badgeColor: "bg-[#5a9a8b]",
+                workDir: "posttest_absensi",
+                summary: "Kelola daftar peserta terdaftar, bangun skrip presensi mandiri, buat cadangan daftar hadir, serta lakukan audit pemenuhan kuota peserta.",
+                levels: [
+                    {
+                        level: 1,
+                        title: "Persiapan Direktori & Daftar Peserta Terdaftar",
+                        desc: "Siapkan ruang kerja administrasi presensi dan catat seluruh nama peserta yang telah mendaftar.",
+                        tasks: [
+                            {
+                                num: 1,
+                                id: "P2_T1",
+                                title: "Inisialisasi Ruang Kerja Presensi",
+                                desc: "Buatlah direktori baru bernama `posttest_absensi` dan pindahkan posisi direktori aktif Anda ke dalam direktori tersebut."
+                            },
+                            {
+                                num: 2,
+                                id: "P2_T2",
+                                title: "Pendataan Peserta Terdaftar (Bebas 5 Nama)",
+                                desc: "Buatlah berkas `peserta.txt` yang berisi daftar 5 nama peserta terdaftar (satu nama per baris). Anda bebas menginputkan nama siapa saja sebanyak 5 baris."
+                            }
+                        ]
+                    },
+                    {
+                        level: 2,
+                        title: "Pengurutan & Rekap Kuota Peserta",
+                        desc: "Rapikan urutan daftar nama peserta sesuai abjad dan simpan angka total target kuota kehadiran.",
+                        tasks: [
+                            {
+                                num: 3,
+                                id: "P2_T3",
+                                title: "Pengurutan Daftar Nama Peserta",
+                                desc: "Urutkan daftar nama yang ada di dalam `peserta.txt` sesuai abjad dan simpan hasilnya ke berkas baru bernama `peserta_urut.txt`."
+                            },
+                            {
+                                num: 4,
+                                id: "P2_T4",
+                                title: "Penetapan Angka Target Kuota",
+                                desc: "Hitung total jumlah baris peserta dari berkas `peserta_urut.txt` (hanya angkanya saja tanpa nama berkas) lalu simpan hasilnya ke dalam berkas `jumlah.txt`."
+                            }
+                        ]
+                    },
+                    {
+                        level: 3,
+                        title: "Layanan Mandiri Presensi Kehadiran",
+                        desc: "Bangun skrip pencatat kehadiran peserta dan jalankan simulasi presensi dengan dua metode eksekusi.",
+                        tasks: [
+                            {
+                                num: 5,
+                                id: "P2_T5",
+                                title: "Pembuatan Skrip Pencatat Kehadiran (`absen.sh`)",
+                                desc: "Buatlah skrip shell bernama `absen.sh` yang meminta input nama dengan pesan `Masukkan nama: `, menambahkan nama yang diinputkan ke baris baru pada berkas `hadir.txt`, lalu menampilkan pesan sapaan `Halo <nama>, kehadiran Anda tercatat`."
+                            },
+                            {
+                                num: 6,
+                                id: "P2_T6",
+                                title: "Perizinan & Simulasi Presensi 2 Peserta",
+                                desc: "Ubah izin akses `absen.sh` agar dapat dieksekusi, kemudian jalankan skrip tersebut sebanyak 2 kali (gunakan eksekusi langsung `./absen.sh` dan eksekusi melalui interpreter `bash absen.sh`) untuk mencatat kehadiran 2 peserta."
+                            }
+                        ]
+                    },
+                    {
+                        level: 4,
+                        title: "Pencadangan Data & Skrip Audit Kehadiran",
+                        desc: "Amankan salinan data kehadiran dan rancang skrip pemeriksaan kelengkapan kuota peserta.",
+                        tasks: [
+                            {
+                                num: 7,
+                                id: "P2_T7",
+                                title: "Penampilan & Pencadangan Daftar Hadir Sekaligus",
+                                desc: "Tampilkan isi berkas `hadir.txt` ke layar terminal sekaligus salin keluarannya secara langsung ke berkas cadangan bernama `hadir_backup.txt` dalam satu rangkaian perintah."
+                            },
+                            {
+                                num: 8,
+                                id: "P2_T8",
+                                title: "Pembuatan Skrip Pemeriksa Kuota (`cek.sh`)",
+                                desc: "Buatlah skrip `cek.sh` yang membandingkan total kuota peserta di `jumlah.txt` dengan jumlah baris peserta yang sudah tercatat di `hadir.txt`. Jika jumlah yang hadir lebih dari atau sama dengan total peserta, tampilkan `Absensi lengkap`. Jika belum memenuhi kuota, tampilkan `Belum lengkap, kurang <selisih> orang`."
+                            }
+                        ]
+                    },
+                    {
+                        level: 5,
+                        title: "Eksekusi Audit & Dokumentasi Direktori",
+                        desc: "Simpan hasil audit ke berkas status dan dokumentasikan rincian berkas beserta atribut izin aksesnya.",
+                        tasks: [
+                            {
+                                num: 9,
+                                id: "P2_T9",
+                                title: "Eksekusi Audit ke Berkas Status",
+                                desc: "Berikan izin eksekusi pada `cek.sh`, lalu jalankan skrip tersebut dan arahkan seluruh hasil keluarannya agar tersimpan ke dalam berkas `status.txt`."
+                            },
+                            {
+                                num: 10,
+                                id: "P2_T10",
+                                title: "Dokumentasi Rincian Berkas & Penampilan Status",
+                                desc: "Simpan daftar rincian lengkap seluruh berkas beserta atribut izin aksesnya di direktori saat ini ke dalam berkas `daftar_file.txt` sekaligus tampilkan isi berkas `status.txt` ke layar dalam satu rangkaian perintah."
+                            }
+                        ]
+                    }
+                ]
+            },
+
+            "3": {
+                id: "3",
+                code: "Soal 3",
+                name: "Sistem Kalkulasi & Rekapitulasi Nilai Akhir Praktikum",
+                icon: "fa-calculator",
+                badgeColor: "bg-[#8479b0]",
+                workDir: "posttest_nilai",
+                summary: "Rancang skrip kalkulasi nilai berbobot beserta penentuan predikat (Grade A/B/C), rekap data 3 praktikan, dan saring peraih predikat terbaik.",
+                levels: [
+                    {
+                        level: 1,
+                        title: "Inisialisasi Ruang Kerja & Perancangan Skrip Kalkulasi (`nilai.sh`)",
+                        desc: "Masuk ke ruang kerja penilaian dan susun skrip `nilai.sh` yang mencakup pembacaan input, rumus bobot, penentuan predikat, hingga penyimpanan rekap.",
+                        tasks: [
+                            {
+                                num: 1,
+                                id: "P3_T1",
+                                title: "Pembuatan & Perpindahan Direktori Penilaian",
+                                desc: "Buatlah direktori kerja bernama `posttest_nilai` dan masuklah ke dalam direktori tersebut sebagai ruang kerja aktif."
+                            },
+                            {
+                                num: 2,
+                                id: "P3_T2",
+                                title: "Pembacaan 4 Komponen Input di `nilai.sh`",
+                                desc: "Buatlah skrip shell `nilai.sh` yang meminta 4 input secara berurutan: `Nama: ` (variabel `nama`), `Nilai Laporan: ` (variabel `laporan`), `Nilai Posttest: ` (variabel `posttest`), dan `Nilai Praktik: ` (variabel `praktik`). (Catatan: Anda dapat langsung menulis keseluruhan isi `nilai.sh` untuk Task 2 s/d Task 5 sekaligus)."
+                            },
+                            {
+                                num: 3,
+                                id: "P3_T3",
+                                title: "Perhitungan Rumus Nilai Berbobot di `nilai.sh`",
+                                desc: "Lengkapi skrip `nilai.sh` dengan rumus perhitungan nilai akhir menggunakan bobot: 30% Nilai Laporan + 30% Nilai Posttest + 40% Nilai Praktik, lalu tampilkan hasilnya dengan format `Nilai akhir <nama>: <nilai>`."
+                            },
+                            {
+                                num: 4,
+                                id: "P3_T4",
+                                title: "Logika Percabangan Predikat (Grade) di `nilai.sh`",
+                                desc: "Tambahkan logika penentuan predikat (`grade`) di dalam `nilai.sh`: jika nilai akhir minimal 85 mendapat `A`, minimal 70 mendapat `B`, dan di bawah 70 mendapat `C`, lalu tampilkan `Grade: <grade>`."
+                            },
+                            {
+                                num: 5,
+                                id: "P3_T5",
+                                title: "Pencatatan Otomatis ke Berkas `rekap.txt` di `nilai.sh`",
+                                desc: "Pada bagian akhir skrip `nilai.sh`, pastikan setiap kali skrip dijalankan, data praktikan otomatis ditambahkan ke baris baru di dalam berkas `rekap.txt` dengan format `Nama:Nilai:Grade`."
+                            }
+                        ]
+                    },
+                    {
+                        level: 2,
+                        title: "Simulasi Pengolahan Data Nilai Praktikan",
+                        desc: "Aktifkan izin eksekusi skrip penilaian dan masukkan sampel data untuk 3 orang praktikan.",
+                        tasks: [
+                            {
+                                num: 6,
+                                id: "P3_T6",
+                                title: "Perizinan & Input Data 3 Praktikan (Bebas)",
+                                desc: "Berikan hak akses eksekusi pada berkas `nilai.sh`, kemudian jalankan skrip tersebut sebanyak 3 kali dengan nama dan nilai praktikan bebas pilihan Anda (disarankan minimal ada 1 praktikan dengan nilai akhir >= 85 agar mendapat predikat A)."
+                            }
+                        ]
+                    },
+                    {
+                        level: 3,
+                        title: "Pengurutan & Klasifikasi Kelulusan Predikat Terbaik",
+                        desc: "Urutkan seluruh rekaman nilai sesuai abjad nama dan pisahkan daftar praktikan berpredikat A.",
+                        tasks: [
+                            {
+                                num: 7,
+                                id: "P3_T7",
+                                title: "Pengurutan Data Rekapitulasi Nilai",
+                                desc: "Urutkan seluruh rekaman data yang ada di dalam `rekap.txt` secara alfabetis dan simpan hasilnya ke berkas `rekap_urut.txt`."
+                            },
+                            {
+                                num: 8,
+                                id: "P3_T8",
+                                title: "Penyaringan Praktikan Berpredikat A",
+                                desc: "Saring data dari berkas `rekap.txt` khusus untuk praktikan yang meraih predikat `A` di akhir barisnya (`:A`), lalu simpan hasilnya ke dalam berkas `lulus_A.txt`."
+                            }
+                        ]
+                    },
+                    {
+                        level: 4,
+                        title: "Perhitungan Statistik Rekapitulasi",
+                        desc: "Hitung total akumulasi praktikan yang telah dinilai di dalam berkas rekap.",
+                        tasks: [
+                            {
+                                num: 9,
+                                id: "P3_T9",
+                                title: "Perhitungan Total Baris Data Praktikan",
+                                desc: "Hitung jumlah total baris data praktikan yang tercatat di dalam `rekap.txt` (hanya angkanya saja tanpa nama berkas) dan simpan ke dalam berkas `total.txt`."
+                            }
+                        ]
+                    },
+                    {
+                        level: 5,
+                        title: "Publikasi Laporan Akhir Nilai",
+                        desc: "Tampilkan daftar nilai terurut ke layar terminal sekaligus salin ke berkas laporan akhir.",
+                        tasks: [
+                            {
+                                num: 10,
+                                id: "P3_T10",
+                                title: "Pencetakan & Penyimpanan Laporan Akhir Serentak",
+                                desc: "Tampilkan isi berkas `rekap_urut.txt` ke layar terminal sekaligus simpan salinannya secara bersamaan ke berkas `laporan_akhir.txt` menggunakan satu rangkaian perintah."
+                            }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        const TOTAL_TASKS = 10; // Setiap paket memiliki tepat 10 Task Runtut
+
+        // =====================================================
+        // 2. SISTEM PENILAIAN (SESUAI ATURAN SPESIFIKASI)
+        // =====================================================
+        // 1. 0 jika tidak post-test (0 task)
+        // 2. 60 - 76 jika gagal atau kurang dari seluruh kasus (1 - 9 task selesai)
+        // 3. 80 jika berhasil semua kasus (10 task selesai)
+        function calculateFinalScore(completedCount) {
+            if (!completedCount || completedCount <= 0) {
+                return 0;
+            }
+            if (completedCount >= TOTAL_TASKS) {
+                return 80;
+            }
+            // Linear proporsional untuk 1 s/d 9 task => 60 s/d 76 (selisih tepat 2 poin per task!)
+            const ratio = (completedCount - 1) / (TOTAL_TASKS - 2);
+            const score = 60 + Math.round(ratio * 16);
+            return Math.min(76, Math.max(60, score));
+        }
+
+        function getScoreStatusInfo(completedCount) {
+            const score = calculateFinalScore(completedCount);
+            if (completedCount <= 0) {
+                return {
+                    score: 0,
+                    label: "Tidak Post-Test",
+                    badgeClass: "bg-red-500/20 text-red-400 border-red-500/30"
+                };
+            } else if (completedCount < TOTAL_TASKS) {
+                return {
+                    score: score,
+                    label: "Kurang dari Seluruh Kasus",
+                    badgeClass: "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                };
+            } else {
+                return {
+                    score: 80,
+                    label: "Berhasil Semua Kasus",
+                    badgeClass: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                };
+            }
+        }
+
+        // =====================================================
+        // 3. STATE MANAGEMENT, SESSION PERSISTENCE & VERCEL CLOUD SYNC
+        // =====================================================
+        const STORAGE_KEYS = {
+            TOKENS: "osquest_hots_tokens_v2",
+            STUDENTS: "osquest_hots_students_v3",
+            SESSION: "osquest_hots_active_session_v3"
+        };
+
+        const DEFAULT_TOKENS = {
+            A: { kelas: "A", token: "OSA-401", active: true },
+            B: { kelas: "B", token: "OSB-402", active: true },
+            C: { kelas: "C", token: "OSC-403", active: true },
+            D: { kelas: "D", token: "OSD-404", active: true },
+            E: { kelas: "E", token: "OSE-405", active: true }
+        };
+
+        const DEFAULT_STUDENTS = [];
+
+        let classTokens = {};
+        let studentsList = [];
+        let adminSelectedClassFilter = "ALL";
+        let isAdminLoggedIn = false;
+        let currentPortal = "praktikan";
+
+        // State Sesi Praktikan Aktif
+        let currentSession = {
+            active: false,
+            stage: "login", // "login" | "select_quest" | "game"
+            studentId: null,
+            nama: "",
+            npm: "",
+            kelas: "A",
+            selectedPackageId: null, // "1", "2", or "3"
+            currentLevelIndex: 0, // 0 to 4
+            completedTaskIds: new Set(),
+            // Virtual File System & Environment State
+            cwd: "~",
+            dirs: new Set(["~"]),
+            vfs: {}, // key: "dir/filename", value: { content: string, executable: boolean }
+            stats: {
+                // Tracking eksekusi skrip interaktif untuk validasi HOTS
+                pinjamRuns: { foundCount: 0, notFoundCount: 0, items: [] },
+                absenRuns: { directRun: false, bashRun: false, totalRuns: 0 },
+                nilaiRuns: { count: 0, hasGradeA: false }
+            },
+            // Interactive Script Read Prompt Mode
+            interactivePrompt: {
+                active: false,
+                scriptName: "",
+                step: 0,
+                tempData: {},
+                pipeToTeeFile: null,
+                redirectFile: null
+            },
+            nanoState: {
+                isOpen: false,
+                fileName: ""
+            }
+        };
+
+        function loadStorageData() {
+            try {
+                // Bersihkan key data dummy lama jika masih ada
+                localStorage.removeItem("osquest_hots_students_v2");
+
+                const savedTokens = localStorage.getItem(STORAGE_KEYS.TOKENS);
+                classTokens = savedTokens ? JSON.parse(savedTokens) : JSON.parse(JSON.stringify(DEFAULT_TOKENS));
+
+                const savedStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+                studentsList = savedStudents ? JSON.parse(savedStudents) : [];
+            } catch (err) {
+                classTokens = JSON.parse(JSON.stringify(DEFAULT_TOKENS));
+                studentsList = [];
+            }
+        }
+
+        // Sinkronisasi ke API Serverless Vercel (/api/sync) agar data praktikan & token tersimpan lintas perangkat
+        async function fetchCloudState() {
+            if (window.location.protocol === "file:") return false;
+            try {
+                const res = await fetch("/api/sync", { method: "GET", cache: "no-store" });
+                if (!res.ok) return false;
+                const data = await res.json();
+                if (data && data.tokens && typeof data.tokens === "object") {
+                    classTokens = data.tokens;
+                    localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(classTokens));
+                }
+                if (data && Array.isArray(data.students)) {
+                    // Gabungkan data lokal yang belum terkirim (jika ada) dengan data server
+                    const serverMap = new Map(data.students.map(s => [s.npm || s.id, s]));
+                    studentsList.forEach(localSt => {
+                        const key = localSt.npm || localSt.id;
+                        if (!serverMap.has(key)) {
+                            serverMap.set(key, localSt);
+                        }
+                    });
+                    studentsList = Array.from(serverMap.values());
+                    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
+                }
+                if (isAdminLoggedIn && currentPortal === "admin") {
+                    const activeId = document.activeElement?.id || "";
+                    if (!activeId.startsWith("tokenInput_")) {
+                        renderAdminTokenCards();
+                    }
+                    renderAdminStudentTable();
+                }
+                return true;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        async function pushCloudAction(actionPayload) {
+            if (window.location.protocol === "file:") return false;
+            try {
+                const res = await fetch("/api/sync", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(actionPayload)
+                });
+                if (!res.ok) return false;
+                const data = await res.json();
+                if (data && data.tokens) {
+                    classTokens = data.tokens;
+                    localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(classTokens));
+                }
+                if (data && Array.isArray(data.students)) {
+                    studentsList = data.students;
+                    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
+                }
+                if (isAdminLoggedIn && currentPortal === "admin") {
+                    renderAdminStudentTable();
+                }
+                return true;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        function saveActiveSessionToStorage() {
+            try {
+                const payload = {
+                    active: currentSession.active,
+                    stage: currentSession.stage,
+                    studentId: currentSession.studentId,
+                    nama: currentSession.nama,
+                    npm: currentSession.npm,
+                    kelas: currentSession.kelas,
+                    selectedPackageId: currentSession.selectedPackageId,
+                    currentLevelIndex: currentSession.currentLevelIndex,
+                    completedTaskIds: Array.from(currentSession.completedTaskIds || []),
+                    cwd: currentSession.cwd || "~",
+                    dirs: Array.from(currentSession.dirs || ["~"]),
+                    vfs: currentSession.vfs || {},
+                    stats: currentSession.stats || {
+                        pinjamRuns: { foundCount: 0, notFoundCount: 0, items: [] },
+                        absenRuns: { directRun: false, bashRun: false, totalRuns: 0 },
+                        nilaiRuns: { count: 0, hasGradeA: false }
+                    },
+                    interactivePrompt: currentSession.interactivePrompt || {
+                        active: false,
+                        scriptName: "",
+                        step: 0,
+                        tempData: {},
+                        pipeToTeeFile: null,
+                        redirectFile: null
+                    },
+                    nanoState: currentSession.nanoState || { isOpen: false, fileName: "" },
+                    nanoDraft: document.getElementById("nanoTextarea")?.value || "",
+                    terminalOutputHtml: document.getElementById("terminalOutput")?.innerHTML || "",
+                    currentPortal: currentPortal || "praktikan",
+                    isAdminLoggedIn: isAdminLoggedIn
+                };
+                localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(payload));
+            } catch (err) {
+                // Abaikan jika gagal menyimpan sesi
+            }
+        }
+
+        function restoreActiveSessionFromStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEYS.SESSION);
+                if (!raw) return;
+                const saved = JSON.parse(raw);
+                if (!saved) return;
+
+                isAdminLoggedIn = Boolean(saved.isAdminLoggedIn);
+                currentPortal = saved.currentPortal || "praktikan";
+
+                if (saved.active) {
+                    currentSession.active = true;
+                    currentSession.stage = saved.stage || "select_quest";
+                    currentSession.studentId = saved.studentId || ("st-" + Date.now());
+                    currentSession.nama = saved.nama || "";
+                    currentSession.npm = saved.npm || "";
+                    currentSession.kelas = saved.kelas || "A";
+                    currentSession.selectedPackageId = saved.selectedPackageId || null;
+                    currentSession.currentLevelIndex = typeof saved.currentLevelIndex === "number" ? saved.currentLevelIndex : 0;
+                    currentSession.completedTaskIds = new Set(Array.isArray(saved.completedTaskIds) ? saved.completedTaskIds : []);
+                    currentSession.cwd = saved.cwd || "~";
+                    currentSession.dirs = new Set(Array.isArray(saved.dirs) && saved.dirs.length > 0 ? saved.dirs : ["~"]);
+                    currentSession.vfs = saved.vfs || {};
+                    currentSession.stats = saved.stats || {
+                        pinjamRuns: { foundCount: 0, notFoundCount: 0, items: [] },
+                        absenRuns: { directRun: false, bashRun: false, totalRuns: 0 },
+                        nilaiRuns: { count: 0, hasGradeA: false }
+                    };
+                    currentSession.interactivePrompt = saved.interactivePrompt || {
+                        active: false,
+                        scriptName: "",
+                        step: 0,
+                        tempData: {},
+                        pipeToTeeFile: null,
+                        redirectFile: null
+                    };
+                    currentSession.nanoState = saved.nanoState || { isOpen: false, fileName: "" };
+
+                    const badgeEl = document.getElementById("selectQuestUserBadge");
+                    if (badgeEl) {
+                        badgeEl.textContent = `${currentSession.nama} (${currentSession.npm} - Kelas ${currentSession.kelas})`;
+                    }
+
+                    if (currentSession.stage === "game" && currentSession.selectedPackageId && QUEST_PACKAGES[currentSession.selectedPackageId]) {
+                        const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
+                        document.getElementById("hudNama").textContent = currentSession.nama;
+                        document.getElementById("hudNpm").textContent = currentSession.npm;
+                        document.getElementById("hudKelas").textContent = `Kelas ${currentSession.kelas}`;
+                        document.getElementById("hudPaketBadge").textContent = `${pkg.code}: ${pkg.workDir}`;
+
+                        const outEl = document.getElementById("terminalOutput");
+                        if (outEl && saved.terminalOutputHtml) {
+                            outEl.innerHTML = saved.terminalOutputHtml;
+                        } else {
+                            resetTerminalWelcome();
+                        }
+
+                        if (currentSession.nanoState && currentSession.nanoState.isOpen) {
+                            const overlay = document.getElementById("nanoEditorOverlay");
+                            const textarea = document.getElementById("nanoTextarea");
+                            const titleEl = document.getElementById("nanoFileNameTitle");
+                            if (titleEl) titleEl.textContent = `File: ${currentSession.nanoState.fileName}`;
+                            if (textarea) textarea.value = saved.nanoDraft || "";
+                            if (overlay) {
+                                overlay.classList.remove("hidden");
+                                overlay.classList.add("flex");
+                            }
+                        }
+
+                        updateTerminalPromptUI();
+                        updateGameplayUI();
+                    }
+                }
+
+                switchPortal(currentPortal);
+            } catch (err) {
+                // Abaikan jika gagal memulihkan sesi
+            }
+        }
+
+        function saveTokensToStorage() {
+            localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(classTokens));
+            renderLoginTokenBadges();
+            pushCloudAction({ action: "save_tokens", tokens: classTokens });
+        }
+
+        function saveStudentsToStorage() {
+            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
+        }
+
+        // =====================================================
+        // 4. PORTAL NAVIGATION & UI HELPERS
+        // =====================================================
+        function switchPortal(portal) {
+            currentPortal = portal;
+            const btnPraktikan = document.getElementById("navBtnPraktikan");
+            const btnAdmin = document.getElementById("navBtnAdmin");
+
+            const vPLogin = document.getElementById("viewPraktikanLogin");
+            const vPSelect = document.getElementById("viewPraktikanSelectQuest");
+            const vPGame = document.getElementById("viewPraktikanGame");
+            const vALogin = document.getElementById("viewAdminLogin");
+            const vADash = document.getElementById("viewAdminDashboard");
+
+            vPLogin.classList.add("hidden");
+            vPSelect.classList.add("hidden");
+            vPGame.classList.add("hidden");
+            vALogin.classList.add("hidden");
+            vADash.classList.add("hidden");
+
+            if (portal === "praktikan") {
+                btnPraktikan.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-2 bg-ubuntu-orange text-white shadow";
+                btnAdmin.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-2 text-gray-400 hover:text-white";
+
+                if (!currentSession.active) {
+                    vPLogin.classList.remove("hidden");
+                } else if (currentSession.stage === "select_quest") {
+                    renderQuestSelectionCards();
+                    vPSelect.classList.remove("hidden");
+                } else {
+                    vPGame.classList.remove("hidden");
+                    focusTerminalInput();
+                }
+            } else {
+                btnAdmin.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-2 bg-ubuntu-orange text-white shadow";
+                btnPraktikan.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-2 text-gray-400 hover:text-white";
+
+                if (isAdminLoggedIn) {
+                    fetchCloudState();
+                    renderAdminDashboard();
+                    vADash.classList.remove("hidden");
+                } else {
+                    const userEl = document.getElementById("adminUser");
+                    const passEl = document.getElementById("adminPass");
+                    if (userEl) userEl.value = "";
+                    if (passEl) passEl.value = "";
+                    vALogin.classList.remove("hidden");
+                }
+            }
+            saveActiveSessionToStorage();
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById("toastContainer");
+            const toast = document.createElement("div");
+
+            let colorClasses = "bg-gray-900 border-gray-700 text-white";
+            let iconClass = "fa-circle-info text-ubuntu-orange";
+
+            if (type === "success") {
+                colorClasses = "bg-emerald-950/95 border-emerald-500/50 text-emerald-100";
+                iconClass = "fa-circle-check text-emerald-400";
+            } else if (type === "error") {
+                colorClasses = "bg-red-950/95 border-red-500/50 text-red-100";
+                iconClass = "fa-triangle-exclamation text-red-400";
+            } else if (type === "warning") {
+                colorClasses = "bg-amber-950/95 border-amber-500/50 text-amber-100";
+                iconClass = "fa-bolt text-amber-400";
+            }
+
+            toast.className = `pointer-events-auto flex items-center space-x-3 px-4 py-3 rounded-xl border shadow-xl backdrop-blur-md text-xs sm:text-sm transition-all duration-300 ${colorClasses}`;
+            toast.innerHTML = `
+                <i class="fa-solid ${iconClass} text-base shrink-0"></i>
+                <div class="flex-1 font-medium">${message}</div>
+            `;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add("opacity-0", "translate-y-2");
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function openModal({ title, bodyHtml, iconHtml, actionsHtml }) {
+            document.getElementById("modalTitle").textContent = title;
+            document.getElementById("modalBody").innerHTML = bodyHtml;
+            if (iconHtml) document.getElementById("modalIcon").innerHTML = iconHtml;
+            if (actionsHtml) document.getElementById("modalActions").innerHTML = actionsHtml;
+            const modal = document.getElementById("customModal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        }
+
+        function closeModal() {
+            const modal = document.getElementById("customModal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        }
+
+        // =====================================================
+        // 5. PRAKTIKAN LOGIN & PEMILIHAN 3 PAKET STUDI KASUS
+        // =====================================================
+        function renderLoginTokenBadges() {
+            // Token aktif tidak lagi ditampilkan di halaman login praktikan
+        }
+
+        function syncTokenHelperSelection() {
+            const selectedKelas = document.getElementById("inputKelas")?.value || "A";
+            const inputTokenEl = document.getElementById("inputToken");
+            if (inputTokenEl) {
+                inputTokenEl.placeholder = `Masukkan kode token Kelas ${selectedKelas}...`;
+            }
+        }
+
+        async function handlePraktikanLogin(e) {
+            e.preventDefault();
+            const nama = document.getElementById("inputNama").value.trim();
+            const npm = document.getElementById("inputNpm").value.trim();
+            const kelas = document.getElementById("inputKelas").value;
+            const inputToken = document.getElementById("inputToken").value.trim().toUpperCase();
+
+            // Sinkronkan token terbaru dari server (jika sudah di-deploy di Vercel)
+            await fetchCloudState();
+
+            const tokenConfig = classTokens[kelas];
+            if (!tokenConfig || !tokenConfig.active) {
+                showToast(`Akses Post-Test untuk Kelas ${kelas} sedang DITUTUP oleh Admin.`, "error");
+                return;
+            }
+
+            if (inputToken !== tokenConfig.token.toUpperCase()) {
+                showToast(`Token Kelas ${kelas} tidak valid! Silakan periksa kembali kode token kelas Anda.`, "error");
+                return;
+            }
+
+            const existingStudent = studentsList.find(s => s.npm === npm);
+
+            currentSession.active = true;
+            currentSession.stage = "select_quest";
+            currentSession.studentId = existingStudent ? existingStudent.id : ("st-" + Date.now());
+            currentSession.nama = nama;
+            currentSession.npm = npm;
+            currentSession.kelas = kelas;
+
+            document.getElementById("inputNama").value = "";
+            document.getElementById("inputNpm").value = "";
+            document.getElementById("inputToken").value = "";
+
+            document.getElementById("selectQuestUserBadge").textContent = `${nama} (${npm} - Kelas ${kelas})`;
+            switchPortal("praktikan");
+            showToast(`Login berhasil! Silakan pilih 1 dari 3 Paket Studi Kasus HOTS.`, "success");
+        }
+
+        function renderQuestSelectionCards() {
+            const grid = document.getElementById("questPackageGrid");
+            grid.innerHTML = "";
+
+            Object.values(QUEST_PACKAGES).forEach(pkg => {
+                const card = document.createElement("div");
+                card.className = "bg-gray-900 border border-gray-800 hover:border-ubuntu-orange/60 rounded-2xl p-6 flex flex-col justify-between shadow-xl transition-all group";
+
+                const levelListHtml = pkg.levels.map(l => `
+                    <li class="flex items-start space-x-2 text-xs text-gray-300">
+                        <span class="text-ubuntu-orange font-mono font-bold">L${l.level}:</span>
+                        <span>${escapeHtml(l.title)}</span>
+                    </li>
+                `).join("");
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider ${pkg.badgeColor} text-white shadow">
+                                ${pkg.code}
+                            </span>
+                            <div class="w-10 h-10 rounded-xl bg-gray-800 group-hover:bg-ubuntu-orange/20 flex items-center justify-center text-ubuntu-orange transition">
+                                <i class="fa-solid ${pkg.icon} text-lg"></i>
+                            </div>
+                        </div>
+
+                        <h3 class="text-lg font-bold text-white mb-2 leading-snug">${escapeHtml(pkg.name)}</h3>
+                        <p class="text-xs text-gray-400 leading-relaxed mb-4">${escapeHtml(pkg.summary)}</p>
+
+                        <div class="bg-gray-950/90 border border-gray-800 rounded-xl p-3.5 mb-5">
+                            <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center justify-between">
+                                <span>Alur 5 Level (10 Task Runtut)</span>
+                                <code class="text-emerald-400">${pkg.workDir}</code>
+                            </div>
+                            <ul class="space-y-1.5">
+                                ${levelListHtml}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <button onclick="startSelectedQuestPackage('${pkg.id}')"
+                        class="w-full py-3 px-4 rounded-xl bg-ubuntu-orange hover:bg-[#5a7cad] text-white font-semibold text-xs sm:text-sm shadow-lg shadow-ubuntu-orange/20 transition flex items-center justify-center space-x-2">
+                        <span>Pilih ${pkg.code} & Mulai Terminal</span>
+                        <i class="fa-solid fa-terminal"></i>
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function startSelectedQuestPackage(pkgId) {
+            const pkg = QUEST_PACKAGES[pkgId];
+            if (!pkg) return;
+
+            currentSession.selectedPackageId = pkgId;
+            currentSession.stage = "game";
+            currentSession.currentLevelIndex = 0;
+            currentSession.completedTaskIds = new Set();
+            currentSession.cwd = "~";
+            currentSession.dirs = new Set(["~"]);
+            currentSession.vfs = {};
+            currentSession.stats = {
+                pinjamRuns: { foundCount: 0, notFoundCount: 0, items: [] },
+                absenRuns: { directRun: false, bashRun: false, totalRuns: 0 },
+                nilaiRuns: { count: 0, hasGradeA: false }
+            };
+            currentSession.interactivePrompt = {
+                active: false,
+                scriptName: "",
+                step: 0,
+                tempData: {},
+                pipeToTeeFile: null,
+                redirectFile: null
+            };
+            currentSession.nanoState = { isOpen: false, fileName: "" };
+
+            // Setup HUD Info
+            document.getElementById("hudNama").textContent = currentSession.nama;
+            document.getElementById("hudNpm").textContent = currentSession.npm;
+            document.getElementById("hudKelas").textContent = `Kelas ${currentSession.kelas}`;
+            document.getElementById("hudPaketBadge").textContent = `${pkg.code}: ${pkg.workDir}`;
+
+            resetTerminalWelcome();
+            updateTerminalPromptUI();
+            updateGameplayUI();
+            switchPortal("praktikan");
+            showToast(`Anda memilih ${pkg.code} (${pkg.name}). Kerjakan mulai dari Task #1 secara berurutan!`, "info");
+        }
+
+        function openChangeQuestConfirmation() {
+            openModal({
+                title: "Ganti Paket Studi Kasus?",
+                iconHtml: `<i class="fa-solid fa-layer-group text-2xl"></i>`,
+                bodyHtml: `
+                    <p class="text-xs sm:text-sm text-gray-300">
+                        Apakah Anda yakin ingin kembali ke halaman pemilihan paket soal? Progress terminal pada paket soal saat ini akan di-reset dari awal.
+                    </p>
+                `,
+                actionsHtml: `
+                    <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium">Batal</button>
+                    <button onclick="confirmReturnToQuestSelection()" class="px-4 py-2 rounded-xl bg-ubuntu-orange hover:bg-[#5a7cad] text-white text-xs font-semibold">Ya, Pilih Paket Lain</button>
+                `
+            });
+        }
+
+        function confirmReturnToQuestSelection() {
+            closeModal();
+            currentSession.stage = "select_quest";
+            switchPortal("praktikan");
+        }
+
+        function logoutPraktikan() {
+            currentSession.active = false;
+            currentSession.stage = "login";
+            localStorage.removeItem(STORAGE_KEYS.SESSION);
+            switchPortal("praktikan");
+        }
+
+        function syncProgressToStudentRecord() {
+            if (!currentSession.active || !currentSession.npm) return;
+            const count = currentSession.completedTaskIds.size;
+            const pkgId = currentSession.selectedPackageId || "-";
+            const statusText = count === TOTAL_TASKS ? "Selesai Semua" : (count === 0 ? "Tidak Post-Test" : `Task ${count}/${TOTAL_TASKS}`);
+
+            let st = studentsList.find(s => s.npm === currentSession.npm || s.id === currentSession.studentId);
+            if (!st) {
+                st = {
+                    id: currentSession.studentId || ("st-" + Date.now()),
+                    nama: currentSession.nama,
+                    npm: currentSession.npm,
+                    kelas: currentSession.kelas,
+                    paket: pkgId,
+                    completedTasks: count,
+                    timestamp: statusText
+                };
+                studentsList.unshift(st);
+            } else {
+                st.nama = currentSession.nama;
+                st.npm = currentSession.npm;
+                st.kelas = currentSession.kelas;
+                st.paket = pkgId;
+                st.completedTasks = count;
+                st.timestamp = statusText;
+            }
+            saveStudentsToStorage();
+            pushCloudAction({ action: "upsert_student", student: st });
+        }
+
+        // =====================================================
+        // 6. SEQUENTIAL TASK LOCK & GAMIFICATION UI ENGINE
+        // =====================================================
+        function getAllTasksForActivePackage() {
+            const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
+            if (!pkg) return [];
+            const all = [];
+            pkg.levels.forEach((lvl, lIdx) => {
+                lvl.tasks.forEach(t => {
+                    all.push({ ...t, levelIndex: lIdx, levelNum: lvl.level });
+                });
+            });
+            return all;
+        }
+
+        function getCurrentUnlockedTask() {
+            const allTasks = getAllTasksForActivePackage();
+            for (const t of allTasks) {
+                if (!currentSession.completedTaskIds.has(t.id)) {
+                    return t;
+                }
+            }
+            return null; // Semua 10 task selesai
+        }
+
+        function isLevelUnlocked(levelIndex) {
+            if (levelIndex === 0) return true;
+            const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
+            if (!pkg) return false;
+            // Level terbuka jika semua task di level sebelumnya sudah selesai
+            const prevLevel = pkg.levels[levelIndex - 1];
+            return prevLevel.tasks.every(t => currentSession.completedTaskIds.has(t.id));
+        }
+
+        function updateGameplayUI() {
+            const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
+            if (!pkg) return;
+
+            const completedCount = currentSession.completedTaskIds.size;
+            const statusObj = getScoreStatusInfo(completedCount);
+            const pct = Math.round((completedCount / TOTAL_TASKS) * 100);
+
+            document.getElementById("hudTaskCount").textContent = `${completedCount}/${TOTAL_TASKS} Task (${pct}%)`;
+            document.getElementById("hudProgressBar").style.width = `${pct}%`;
+            document.getElementById("hudCurrentScore").textContent = statusObj.score;
+            document.getElementById("hudCwd").textContent = currentSession.cwd;
+
+            const hudStatusText = document.getElementById("hudStatusText");
+            hudStatusText.textContent = `${statusObj.label} (Nilai: ${statusObj.score})`;
+            hudStatusText.className = completedCount === TOTAL_TASKS
+                ? "text-emerald-400 font-semibold"
+                : (completedCount > 0 ? "text-amber-300 font-semibold" : "text-red-400 font-semibold");
+
+            renderLevelStepper();
+            renderActiveLevelPanel();
+            renderVfsInspector();
+            saveActiveSessionToStorage();
+        }
+
+        function renderLevelStepper() {
+            const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
+            const container = document.getElementById("levelStepperContainer");
+            container.innerHTML = "";
+
+            pkg.levels.forEach((lvl, idx) => {
+                const doneInLevel = lvl.tasks.filter(t => currentSession.completedTaskIds.has(t.id)).length;
+                const totalInLevel = lvl.tasks.length;
+                const isAllDone = doneInLevel === totalInLevel;
+                const unlocked = isLevelUnlocked(idx);
+                const isCurrent = idx === currentSession.currentLevelIndex;
+
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.onclick = () => {
+                    if (!unlocked) {
+                        showToast(`Level ${lvl.level} masih terkunci! Selesaikan seluruh task pada Level ${lvl.level - 1} terlebih dahulu.`, "warning");
+                        return;
+                    }
+                    selectLevel(idx);
+                };
+
+                let borderStyle = "border-gray-800 bg-gray-950/60 text-gray-500";
+                if (!unlocked) {
+                    borderStyle = "border-gray-800/60 bg-gray-950/30 text-gray-600 cursor-not-allowed opacity-60";
+                } else if (isCurrent) {
+                    borderStyle = "border-ubuntu-orange bg-ubuntu-orange/15 text-white shadow-sm";
+                } else if (isAllDone) {
+                    borderStyle = "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
+                }
+
+                btn.className = `p-2.5 rounded-xl border text-left transition flex items-center justify-between ${borderStyle}`;
+                btn.innerHTML = `
+                    <div class="truncate pr-2">
+                        <div class="text-[10px] font-mono uppercase tracking-wider ${isCurrent ? 'text-ubuntu-orange font-bold' : ''}">
+                            Level ${lvl.level}
+                        </div>
+                        <div class="text-xs font-semibold truncate">${escapeHtml(lvl.title)}</div>
+                    </div>
+                    <div class="shrink-0 flex items-center space-x-1">
+                        ${!unlocked
+                            ? '<i class="fa-solid fa-lock text-gray-600 text-xs"></i>'
+                            : `<span class="text-[11px] font-mono px-1.5 py-0.5 rounded ${isAllDone ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gray-800 text-gray-300'}">${doneInLevel}/${totalInLevel}</span>`
+                        }
+                        ${isAllDone ? '<i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i>' : ''}
+                    </div>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function renderActiveLevelPanel() {
+            const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
+            const lvl = pkg.levels[currentSession.currentLevelIndex];
+            const activeUnlockedTask = getCurrentUnlockedTask();
+
+            document.getElementById("activeLevelBadge").textContent = `${pkg.code.toUpperCase()} - LEVEL ${lvl.level} / 5`;
+            document.getElementById("activeLevelTitle").textContent = lvl.title;
+            document.getElementById("activeLevelDesc").textContent = lvl.desc;
+
+            const taskContainer = document.getElementById("taskListContainer");
+            taskContainer.innerHTML = "";
+
+            lvl.tasks.forEach(task => {
+                const isDone = currentSession.completedTaskIds.has(task.id);
+                const isActiveTarget = activeUnlockedTask && activeUnlockedTask.id === task.id;
+                const isLocked = !isDone && !isActiveTarget;
+
+                const item = document.createElement("div");
+                item.className = `p-3.5 rounded-xl border transition-all ${
+                    isDone
+                        ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-200"
+                        : isActiveTarget
+                            ? "bg-gray-950 border-ubuntu-orange active-task-glow text-white shadow-lg"
+                            : "bg-gray-950/40 border-gray-800/70 text-gray-500 opacity-65"
+                }`;
+
+                const formattedDesc = escapeHtml(task.desc)
+                    .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-white/10 text-amber-300 font-mono text-[11px]">$1</code>')
+                    .replace(/\n/g, '<br>');
+
+                item.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0 ${
+                            isDone
+                                ? "bg-emerald-500 text-gray-950"
+                                : isActiveTarget
+                                    ? "bg-ubuntu-orange text-white"
+                                    : "bg-gray-800 text-gray-500"
+                        }">
+                            ${isDone
+                                ? '<i class="fa-solid fa-check"></i>'
+                                : isLocked
+                                    ? '<i class="fa-solid fa-lock text-[10px]"></i>'
+                                    : `<span class="font-mono font-bold text-[11px]">${task.num}</span>`
+                            }
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-xs font-bold ${isDone ? 'line-through opacity-80' : (isActiveTarget ? 'text-white' : 'text-gray-400')}">
+                                    Task #${task.num}: ${escapeHtml(task.title)}
+                                </span>
+                                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded ${
+                                    isDone
+                                        ? 'bg-emerald-500/20 text-emerald-300'
+                                        : isActiveTarget
+                                            ? 'bg-ubuntu-orange/20 text-ubuntu-orange font-bold'
+                                            : 'bg-gray-800 text-gray-500'
+                                }">
+                                    ${isDone ? 'Selesai' : (isActiveTarget ? 'Aktif Dikerjakan' : 'Terkunci')}
+                                </span>
+                            </div>
+                            <p class="text-xs leading-relaxed mt-1.5 ${isLocked ? 'text-gray-500' : 'text-gray-300'}">${formattedDesc}</p>
+                        </div>
+                    </div>
+                `;
+                if (isActiveTarget) {
+                    item.id = "activeTargetTaskCard";
+                }
+                taskContainer.appendChild(item);
+            });
+
+            const activeCard = document.getElementById("activeTargetTaskCard");
+            if (activeCard) {
+                activeCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
+
+            document.getElementById("btnPrevLevel").disabled = currentSession.currentLevelIndex === 0;
+            const nextIdx = currentSession.currentLevelIndex + 1;
+            document.getElementById("btnNextLevel").disabled = nextIdx >= pkg.levels.length || !isLevelUnlocked(nextIdx);
+        }
+
+        function renderVfsInspector() {
+            const dirLabel = document.getElementById("inspectorDirName");
+            const container = document.getElementById("vfsFileBadges");
+            if (!dirLabel || !container) return;
+
+            dirLabel.textContent = currentSession.cwd;
+            container.innerHTML = "";
+
+            const prefix = currentSession.cwd + "/";
+            const filesInCwd = Object.keys(currentSession.vfs)
+                .filter(k => k.startsWith(prefix))
+                .map(k => ({ name: k.slice(prefix.length), ...currentSession.vfs[k] }));
+
+            // Cari subdirektori di dalam cwd
+            const subDirs = Array.from(currentSession.dirs)
+                .filter(d => d !== currentSession.cwd && d.startsWith(prefix) && !d.slice(prefix.length).includes("/"))
+                .map(d => d.slice(prefix.length));
+
+            if (subDirs.length === 0 && filesInCwd.length === 0) {
+                container.innerHTML = `<span class="text-gray-500 italic text-[11px]">Belum ada direktori/berkas di lokasi ini.</span>`;
+                return;
+            }
+
+            subDirs.forEach(d => {
+                const badge = document.createElement("span");
+                badge.className = "px-2 py-1 rounded bg-blue-500/15 border border-blue-500/30 text-blue-300 flex items-center space-x-1";
+                badge.innerHTML = `<i class="fa-solid fa-folder text-[10px]"></i><span>${escapeHtml(d)}/</span>`;
+                container.appendChild(badge);
+            });
+
+            filesInCwd.forEach(f => {
+                const badge = document.createElement("button");
+                badge.type = "button";
+                badge.title = "Klik untuk mengintip isi berkas";
+                badge.onclick = () => previewVfsFileModal(f.name, f.content, f.executable);
+                badge.className = `px-2 py-1 rounded border flex items-center space-x-1 transition ${
+                    f.executable
+                        ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25"
+                        : "bg-gray-900 border-gray-700 text-gray-300 hover:border-gray-500"
+                }`;
+                badge.innerHTML = `<i class="fa-regular fa-file-lines text-[10px]"></i><span>${escapeHtml(f.name)}${f.executable ? '*' : ''}</span>`;
+                container.appendChild(badge);
+            });
+        }
+
+        function previewVfsFileModal(fileName, content, executable) {
+            openModal({
+                title: `Isi Berkas: ${fileName} ${executable ? '(+x)' : ''}`,
+                iconHtml: `<i class="fa-solid fa-file-code text-2xl"></i>`,
+                bodyHtml: `
+                    <pre class="bg-gray-950 border border-gray-800 rounded-xl p-3.5 text-left font-mono text-xs text-emerald-300 overflow-x-auto max-h-60">${escapeHtml(content || "(Berkas kosong)")}</pre>
+                `,
+                actionsHtml: `
+                    <button onclick="closeModal()" class="px-5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium">Tutup</button>
+                `
+            });
+        }
+
+        function selectLevel(index) {
+            const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
+            if (!pkg || index < 0 || index >= pkg.levels.length) return;
+            if (!isLevelUnlocked(index)) return;
+            currentSession.currentLevelIndex = index;
+            updateGameplayUI();
+        }
+
+        function changeLevel(delta) {
+            selectLevel(currentSession.currentLevelIndex + delta);
+        }
+
+        // =====================================================
+        // 7. SEQUENTIAL STATE EVALUATOR (VALIDASI OTOMATIS & RUNTUT)
+        // =====================================================
+        function getVfsFile(dir, name) {
+            return currentSession.vfs[`${dir}/${name}`] || null;
+        }
+
+        function getTrimmedLines(content) {
+            if (!content) return [];
+            return content.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        }
+
+        function checkTaskConditionMet(taskId) {
+            const pkgId = currentSession.selectedPackageId;
+
+            // -----------------------------------------
+            // VALIDASI PAKET 1: PERPUSTAKAAN (DINAMIS SESUAI INPUT USER)
+            // -----------------------------------------
+            if (pkgId === "1") {
+                const dir = "~/posttest_perpus";
+                if (taskId === "P1_T1") {
+                    return currentSession.dirs.has(dir) && currentSession.cwd === dir;
+                }
+                if (taskId === "P1_T2") {
+                    const f = getVfsFile(dir, "katalog.txt");
+                    if (!f) return false;
+                    const lines = getTrimmedLines(f.content);
+                    // Bebas minimal 5 baris dengan format Judul:Penulis:Tahun (Tahun 4 digit angka)
+                    const formatRegex = /^[^:]+\s*:\s*[^:]+\s*:\s*\d{4}$/;
+                    return lines.length >= 5 && lines.every(l => formatRegex.test(l));
+                }
+                if (taskId === "P1_T3") {
+                    const fKat = getVfsFile(dir, "katalog.txt");
+                    const fUrut = getVfsFile(dir, "katalog_urut.txt");
+                    if (!fKat || !fUrut) return false;
+                    const katLines = getTrimmedLines(fKat.content);
+                    const urutLines = getTrimmedLines(fUrut.content);
+                    if (katLines.length < 5 || urutLines.length !== katLines.length) return false;
+                    const expectedSorted = [...katLines].sort((a, b) => a.localeCompare(b));
+                    return urutLines.every((val, idx) => val === expectedSorted[idx]);
+                }
+                if (taskId === "P1_T4") {
+                    const fKat = getVfsFile(dir, "katalog.txt");
+                    const fPenulis = getVfsFile(dir, "buku_penulis.txt");
+                    if (!fKat || !fPenulis) return false;
+                    const katLines = getTrimmedLines(fKat.content);
+                    const penulisLines = getTrimmedLines(fPenulis.content);
+                    // Pastikan buku_penulis.txt berisi minimal 1 baris dan setiap barisnya memang berasal dari katalog.txt
+                    return penulisLines.length >= 1 && penulisLines.every(line => katLines.includes(line));
+                }
+                if (taskId === "P1_T5") {
+                    const fKat = getVfsFile(dir, "katalog.txt");
+                    const fTotal = getVfsFile(dir, "total_buku.txt");
+                    if (!fKat || !fTotal) return false;
+                    const expectedTotal = String(getTrimmedLines(fKat.content).length);
+                    return fTotal.content.trim() === expectedTotal;
+                }
+                if (taskId === "P1_T6") {
+                    const f = getVfsFile(dir, "pinjam.sh");
+                    if (!f) return false;
+                    const c = f.content;
+                    return c.includes("read") && c.includes("grep") && c.includes("katalog.txt") && c.includes("pinjam.txt") && c.includes("Peminjaman dicatat") && c.includes("Buku tidak ditemukan");
+                }
+                if (taskId === "P1_T7") {
+                    const fScript = getVfsFile(dir, "pinjam.sh");
+                    const fPinjam = getVfsFile(dir, "pinjam.txt");
+                    if (!fScript || !fScript.executable || !fPinjam) return false;
+                    const lines = getTrimmedLines(fPinjam.content);
+                    // Bebas judul buku apa saja dari katalog.txt (minimal 2 tercatat di pinjam.txt) + minimal 1 uji judul yang tidak ditemukan
+                    return lines.length >= 2 && currentSession.stats.pinjamRuns.foundCount >= 2 && currentSession.stats.pinjamRuns.notFoundCount >= 1;
+                }
+                if (taskId === "P1_T8") {
+                    const f = getVfsFile(dir, "jml_pinjam.txt");
+                    const fPinjam = getVfsFile(dir, "pinjam.txt");
+                    if (!f || !fPinjam) return false;
+                    const expectedCount = String(getTrimmedLines(fPinjam.content).length);
+                    return f.content.trim() === expectedCount;
+                }
+                if (taskId === "P1_T9") {
+                    const f = getVfsFile(dir, "sisa.sh");
+                    if (!f) return false;
+                    const c = f.content;
+                    return c.includes("total_buku.txt") && c.includes("jml_pinjam.txt") && c.includes("Buku tersedia:") && c.includes("Stok menipis");
+                }
+                if (taskId === "P1_T10") {
+                    const fScript = getVfsFile(dir, "sisa.sh");
+                    const fLap = getVfsFile(dir, "laporan_perpus.txt");
+                    if (!fScript || !fScript.executable || !fLap) return false;
+                    return fLap.content.includes("Buku tersedia:");
+                }
+            }
+
+            // -----------------------------------------
+            // VALIDASI PAKET 2: ABSENSI WORKSHOP (DINAMIS SESUAI INPUT USER)
+            // -----------------------------------------
+            if (pkgId === "2") {
+                const dir = "~/posttest_absensi";
+                if (taskId === "P2_T1") {
+                    return currentSession.dirs.has(dir) && currentSession.cwd === dir;
+                }
+                if (taskId === "P2_T2") {
+                    const f = getVfsFile(dir, "peserta.txt");
+                    if (!f) return false;
+                    const lines = getTrimmedLines(f.content);
+                    // Bebas nama siapa saja, minimal 5 baris nama peserta
+                    return lines.length >= 5;
+                }
+                if (taskId === "P2_T3") {
+                    const fPeserta = getVfsFile(dir, "peserta.txt");
+                    const fUrut = getVfsFile(dir, "peserta_urut.txt");
+                    if (!fPeserta || !fUrut) return false;
+                    const pLines = getTrimmedLines(fPeserta.content);
+                    const uLines = getTrimmedLines(fUrut.content);
+                    if (pLines.length < 5 || uLines.length !== pLines.length) return false;
+                    const expectedSorted = [...pLines].sort((a, b) => a.localeCompare(b));
+                    return uLines.every((val, idx) => val === expectedSorted[idx]);
+                }
+                if (taskId === "P2_T4") {
+                    const fUrut = getVfsFile(dir, "peserta_urut.txt");
+                    const fJml = getVfsFile(dir, "jumlah.txt");
+                    if (!fUrut || !fJml) return false;
+                    const expectedCount = String(getTrimmedLines(fUrut.content).length);
+                    return fJml.content.trim() === expectedCount;
+                }
+                if (taskId === "P2_T5") {
+                    const f = getVfsFile(dir, "absen.sh");
+                    if (!f) return false;
+                    const c = f.content;
+                    return c.includes("read") && c.includes("hadir.txt") && c.includes("kehadiran Anda tercatat");
+                }
+                if (taskId === "P2_T6") {
+                    const fScript = getVfsFile(dir, "absen.sh");
+                    const fHadir = getVfsFile(dir, "hadir.txt");
+                    if (!fScript || !fScript.executable || !fHadir) return false;
+                    const lines = getTrimmedLines(fHadir.content);
+                    return lines.length >= 2 && currentSession.stats.absenRuns.totalRuns >= 2;
+                }
+                if (taskId === "P2_T7") {
+                    const fHadir = getVfsFile(dir, "hadir.txt");
+                    const fBackup = getVfsFile(dir, "hadir_backup.txt");
+                    if (!fHadir || !fBackup) return false;
+                    return fBackup.content.trim().length > 0 && fBackup.content.trim() === fHadir.content.trim();
+                }
+                if (taskId === "P2_T8") {
+                    const f = getVfsFile(dir, "cek.sh");
+                    if (!f) return false;
+                    const c = f.content;
+                    return c.includes("jumlah.txt") && c.includes("hadir.txt") && c.includes("Absensi lengkap") && c.includes("Belum lengkap");
+                }
+                if (taskId === "P2_T9") {
+                    const fScript = getVfsFile(dir, "cek.sh");
+                    const fStatus = getVfsFile(dir, "status.txt");
+                    if (!fScript || !fScript.executable || !fStatus) return false;
+                    return fStatus.content.includes("Belum lengkap") || fStatus.content.includes("Absensi lengkap");
+                }
+                if (taskId === "P2_T10") {
+                    const fDaftar = getVfsFile(dir, "daftar_file.txt");
+                    const fStatus = getVfsFile(dir, "status.txt");
+                    if (!fDaftar || !fStatus) return false;
+                    return fDaftar.content.includes("peserta.txt") && fDaftar.content.includes("cek.sh") && currentSession.stats.lastCatStatus === true;
+                }
+            }
+
+            // -----------------------------------------
+            // VALIDASI PAKET 3: KALKULASI NILAI
+            // -----------------------------------------
+            if (pkgId === "3") {
+                const dir = "~/posttest_nilai";
+                if (taskId === "P3_T1") {
+                    return currentSession.dirs.has(dir) && currentSession.cwd === dir;
+                }
+                const fNilai = getVfsFile(dir, "nilai.sh");
+                const c = fNilai ? fNilai.content : "";
+
+                if (taskId === "P3_T2") {
+                    return c.includes("read") && c.includes("nama") && c.includes("laporan") && c.includes("posttest") && c.includes("praktik");
+                }
+                if (taskId === "P3_T3") {
+                    return c.includes("30") && c.includes("40") && c.includes("Nilai akhir");
+                }
+                if (taskId === "P3_T4") {
+                    return c.includes("85") && c.includes("70") && c.includes("Grade:");
+                }
+                if (taskId === "P3_T5") {
+                    return c.includes("rekap.txt") && c.includes(">>");
+                }
+                if (taskId === "P3_T6") {
+                    const fRekap = getVfsFile(dir, "rekap.txt");
+                    if (!fNilai || !fNilai.executable || !fRekap) return false;
+                    const lines = getTrimmedLines(fRekap.content);
+                    return lines.length >= 3;
+                }
+                if (taskId === "P3_T7") {
+                    const fUrut = getVfsFile(dir, "rekap_urut.txt");
+                    const fRekap = getVfsFile(dir, "rekap.txt");
+                    if (!fUrut || !fRekap) return false;
+                    const rLines = getTrimmedLines(fRekap.content);
+                    const uLines = getTrimmedLines(fUrut.content);
+                    if (rLines.length < 3 || uLines.length !== rLines.length) return false;
+                    const expectedSorted = [...rLines].sort((a, b) => a.localeCompare(b));
+                    return uLines.every((val, idx) => val === expectedSorted[idx]);
+                }
+                if (taskId === "P3_T8") {
+                    const fLulusA = getVfsFile(dir, "lulus_A.txt");
+                    const fRekap = getVfsFile(dir, "rekap.txt");
+                    if (!fLulusA || !fRekap) return false;
+                    const rLines = getTrimmedLines(fRekap.content);
+                    const expectedALines = rLines.filter(l => l.endsWith(":A"));
+                    const actualALines = getTrimmedLines(fLulusA.content);
+                    return actualALines.length === expectedALines.length && actualALines.every((v, i) => v === expectedALines[i]);
+                }
+                if (taskId === "P3_T9") {
+                    const fTotal = getVfsFile(dir, "total.txt");
+                    const fRekap = getVfsFile(dir, "rekap.txt");
+                    if (!fTotal || !fRekap) return false;
+                    const expected = String(getTrimmedLines(fRekap.content).length);
+                    return fTotal.content.trim() === expected;
+                }
+                if (taskId === "P3_T10") {
+                    const fLap = getVfsFile(dir, "laporan_akhir.txt");
+                    const fUrut = getVfsFile(dir, "rekap_urut.txt");
+                    if (!fLap || !fUrut) return false;
+                    return fLap.content.trim().length > 0 && fLap.content.trim() === fUrut.content.trim();
+                }
+            }
+
+            return false;
+        }
+
+        // Mengevaluasi secara berurutan mulai dari task aktif yang sedang terbuka
+        function evaluateSequentialTasks() {
+            const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
+            if (!pkg) return;
+
+            let newlyCompleted = [];
+            while (true) {
+                const nextTask = getCurrentUnlockedTask();
+                if (!nextTask) break;
+
+                if (checkTaskConditionMet(nextTask.id)) {
+                    currentSession.completedTaskIds.add(nextTask.id);
+                    newlyCompleted.push(nextTask);
+                } else {
+                    break;
+                }
+            }
+
+            if (newlyCompleted.length > 0) {
+                playTaskSuccessSound();
+                newlyCompleted.forEach(t => {
+                    appendTerminalOutput(`<span class="text-emerald-400 font-bold">[TASK #${t.num} SELESAI]</span> <span class="text-emerald-200">${escapeHtml(t.title)}</span>`);
+                });
+                showToast(`Berhasil menyelesaikan Task #${newlyCompleted.map(t => t.num).join(", #")}!`, "success");
+
+                // Cek apakah perlu auto-advance ke level berikutnya jika semua task di level saat ini sudah selesai
+                const nextUnlocked = getCurrentUnlockedTask();
+                if (nextUnlocked && nextUnlocked.levelIndex !== currentSession.currentLevelIndex) {
+                    currentSession.currentLevelIndex = nextUnlocked.levelIndex;
+                    showToast(`Level ${nextUnlocked.levelNum} Terbuka!`, "info");
+                }
+            }
+
+            updateGameplayUI();
+        }
+
+        // =====================================================
+        // 8. UBUNTU TERMINAL & BASH INTERPRETER ENGINE
+        // =====================================================
+        function focusTerminalInput(e) {
+            if (e && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+            if (window.getSelection && window.getSelection().toString().length > 0) return;
+            if (!currentSession.nanoState.isOpen) {
+                const el = document.getElementById("terminalInput");
+                if (el) el.focus();
+            }
+        }
+
+        function autoResizeTerminalInput(el) {
+            if (!el) return;
+            el.style.height = "auto";
+            el.style.height = el.scrollHeight + "px";
+        }
+
+        function handleTerminalInputKeydown(e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleTerminalSubmit(e);
+            }
+        }
+
+        function updateTerminalPromptUI() {
+            const promptLabel = document.getElementById("terminalPromptLabel");
+            const headerPath = document.getElementById("terminalHeaderPath");
+
+            if (currentSession.interactivePrompt.active) {
+                promptLabel.textContent = currentSession.interactivePrompt.promptText || "> ";
+                promptLabel.className = "text-amber-300 font-bold shrink-0";
+            } else {
+                promptLabel.textContent = `praktikan@ubuntu-lab:${currentSession.cwd}$`;
+                promptLabel.className = "text-emerald-400 font-bold shrink-0";
+                if (headerPath) headerPath.textContent = `praktikan@ubuntu-lab: ${currentSession.cwd}`;
+            }
+        }
+
+        function appendTerminalOutput(htmlContent) {
+            const output = document.getElementById("terminalOutput");
+            const div = document.createElement("div");
+            div.className = "leading-relaxed";
+            div.innerHTML = htmlContent;
+            output.appendChild(div);
+
+            const screen = document.getElementById("terminalScreen");
+            screen.scrollTop = screen.scrollHeight;
+            saveActiveSessionToStorage();
+        }
+
+        function resetTerminalWelcome() {
+            const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
+            const output = document.getElementById("terminalOutput");
+            output.innerHTML = "";
+            appendTerminalOutput(`<span class="text-gray-400">Ubuntu 22.04.4 LTS (GNU/Linux 5.15.0-105-generic x86_64)</span>`);
+            appendTerminalOutput(`<span class="text-ubuntu-orange font-bold">[${pkg.code}] ${escapeHtml(pkg.name)}</span>`);
+            appendTerminalOutput(`<span class="text-gray-300">Baca instruksi <strong>Task #1</strong> pada panel kiri. Selesaikan setiap task secara berurutan untuk membuka task berikutnya.</span>`);
+            appendTerminalOutput(`&nbsp;`);
+        }
+
+        function clearTerminal() {
+            document.getElementById("terminalOutput").innerHTML = "";
+            saveActiveSessionToStorage();
+            focusTerminalInput();
+        }
+
+        function printHelpCommand() {
+            appendTerminalOutput(`<span class="text-amber-300 font-bold">Panduan Umum Lingkungan Terminal Ubuntu:</span>`);
+            appendTerminalOutput(`  &bull; Anda berada pada shell interaktif Bash standar Ubuntu.`);
+            appendTerminalOutput(`  &bull; Gunakan perintah manajemen direktori, berkas, pengalihan aliran data (<code class="text-white">&gt;</code>, <code class="text-white">&gt;&gt;</code>, <code class="text-white">&lt;</code>, <code class="text-white">|</code>), dan operator berantai (<code class="text-white">&amp;&amp;</code>).`);
+            appendTerminalOutput(`  &bull; Untuk membuat atau menyunting skrip shell, gunakan perintah <code class="text-emerald-300">nano &lt;nama_berkas&gt;</code>.`);
+            appendTerminalOutput(`  &bull; Gunakan <code class="text-emerald-300">clear</code> untuk membersihkan layar terminal.`);
+            focusTerminalInput();
+        }
+
+        // Menangani submit form terminal (baik mode command biasa maupun mode interactive prompt read)
+        function handleTerminalSubmit(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            const inputEl = document.getElementById("terminalInput");
+            const rawInput = inputEl.value;
+            inputEl.value = "";
+            inputEl.style.height = "auto";
+
+            if (currentSession.interactivePrompt.active) {
+                handleInteractiveScriptInput(rawInput.trim());
+                return;
+            }
+
+            const cmdLine = rawInput.trim();
+            appendTerminalOutput(`<span class="text-emerald-400 font-bold">praktikan@ubuntu-lab:${currentSession.cwd}$</span> <span class="text-white">${escapeHtml(cmdLine)}</span>`);
+
+            if (!cmdLine) return;
+
+            // Pisahkan rangkaian perintah dengan `&&`
+            const chainedCommands = splitByDoubleAmpersand(cmdLine);
+            for (const singleCmd of chainedCommands) {
+                const shouldContinue = executeSinglePipelineCommand(singleCmd.trim());
+                if (!shouldContinue || currentSession.interactivePrompt.active || currentSession.nanoState.isOpen) {
+                    break;
+                }
+            }
+
+            updateTerminalPromptUI();
+            evaluateSequentialTasks();
+        }
+
+        function splitByDoubleAmpersand(str) {
+            const result = [];
+            let current = "";
+            let inQuotes = false;
+            let quoteChar = "";
+
+            for (let i = 0; i < str.length; i++) {
+                const ch = str[i];
+                if ((ch === '"' || ch === "'") && str[i - 1] !== "\\") {
+                    if (!inQuotes) {
+                        inQuotes = true;
+                        quoteChar = ch;
+                    } else if (quoteChar === ch) {
+                        inQuotes = false;
+                    }
+                }
+                if (!inQuotes && ch === "&" && str[i + 1] === "&") {
+                    result.push(current);
+                    current = "";
+                    i++;
+                } else {
+                    current += ch;
+                }
+            }
+            if (current.trim()) result.push(current);
+            return result;
+        }
+
+        function splitByPipe(str) {
+            const result = [];
+            let current = "";
+            let inQuotes = false;
+            let quoteChar = "";
+
+            for (let i = 0; i < str.length; i++) {
+                const ch = str[i];
+                if ((ch === '"' || ch === "'") && str[i - 1] !== "\\") {
+                    if (!inQuotes) {
+                        inQuotes = true;
+                        quoteChar = ch;
+                    } else if (quoteChar === ch) {
+                        inQuotes = false;
+                    }
+                }
+                if (!inQuotes && ch === "|") {
+                    result.push(current.trim());
+                    current = "";
+                } else {
+                    current += ch;
+                }
+            }
+            if (current.trim()) result.push(current.trim());
+            return result;
+        }
+
+        function resolveFileKey(fileName) {
+            const clean = fileName.trim().replace(/^\.\//, "");
+            if (clean.startsWith("~/")) {
+                return clean;
+            }
+            return `${currentSession.cwd}/${clean}`;
+        }
+
+        function writeVfsFile(fileName, content, append = false) {
+            const key = resolveFileKey(fileName);
+            const existing = currentSession.vfs[key];
+            if (append && existing) {
+                const prev = existing.content.endsWith("\n") || existing.content === "" ? existing.content : existing.content + "\n";
+                existing.content = prev + content;
+            } else {
+                currentSession.vfs[key] = {
+                    content: content,
+                    executable: existing ? existing.executable : false
+                };
+            }
+        }
+
+        function readVfsFileContent(fileName) {
+            const key = resolveFileKey(fileName);
+            const f = currentSession.vfs[key];
+            return f ? f.content : null;
+        }
+
+        // Eksekusi satu pipeline perintah (mendukung `|`, `>`, `>>`, `<`)
+        function executeSinglePipelineCommand(cmdStr) {
+            const pipeSegments = splitByPipe(cmdStr);
+
+            // Cek apakah ada pipe ke `tee <file>`
+            let pipeToTeeFile = null;
+            let mainSegment = pipeSegments[0];
+
+            if (pipeSegments.length === 2 && pipeSegments[1].startsWith("tee ")) {
+                const teeArgs = pipeSegments[1].slice(4).trim().split(/\s+/);
+                pipeToTeeFile = teeArgs[0];
+            } else if (pipeSegments.length === 2 && pipeSegments[1].startsWith("wc -l")) {
+                // Contoh: cat katalog.txt | wc -l > total_buku.txt
+                const firstOut = runAtomicCommandForOutput(pipeSegments[0]);
+                if (firstOut === null) return false;
+                const lineCount = String(getTrimmedLines(firstOut).length);
+                return handleRedirectionAndPrint(pipeSegments[1].replace(/^wc\s+-l/, "").trim(), lineCount, null);
+            }
+
+            // Cek apakah perintah berupa eksekusi skrip (`./nama.sh` atau `bash nama.sh`)
+            if (mainSegment.startsWith("./") || mainSegment.startsWith("bash ") || mainSegment.startsWith("sh ")) {
+                return handleScriptExecutionCommand(mainSegment, pipeToTeeFile);
+            }
+
+            // Parsing redirection `>>`, `>`, dan `<` pada mainSegment
+            let redirectFile = null;
+            let isAppend = false;
+            let inputRedirectFile = null;
+            let cleanCmd = mainSegment;
+
+            // Cek `>>` atau `>`
+            const appendMatch = cleanCmd.match(/^(.*?)\s*>>\s*([^\s>]+)\s*$/);
+            if (appendMatch) {
+                cleanCmd = appendMatch[1].trim();
+                redirectFile = appendMatch[2].trim();
+                isAppend = true;
+            } else {
+                const writeMatch = cleanCmd.match(/^(.*?)\s*>\s*([^\s>]+)\s*$/);
+                if (writeMatch) {
+                    cleanCmd = writeMatch[1].trim();
+                    redirectFile = writeMatch[2].trim();
+                    isAppend = false;
+                }
+            }
+
+            // Cek `<`
+            const inputMatch = cleanCmd.match(/^(.*?)\s*<\s*([^\s<]+)\s*$/);
+            if (inputMatch) {
+                cleanCmd = inputMatch[1].trim();
+                inputRedirectFile = inputMatch[2].trim();
+            }
+
+            const parts = cleanCmd.split(/\s+/);
+            const base = parts[0];
+
+            // Perintah non-output yang mengubah state
+            if (base === "clear") {
+                clearTerminal();
+                return true;
+            }
+            if (base === "help") {
+                printHelpCommand();
+                return true;
+            }
+            if (base === "pwd") {
+                const pwdOut = currentSession.cwd.replace(/^~/, "/home/praktikan");
+                return outputOrRedirect(pwdOut, redirectFile, isAppend, pipeToTeeFile);
+            }
+            if (base === "mkdir") {
+                const dirName = parts[1];
+                if (!dirName) {
+                    appendTerminalOutput(`<span class="text-red-400">mkdir: missing operand</span>`);
+                    return false;
+                }
+                const newDirPath = currentSession.cwd === "~" ? `~/${dirName}` : `${currentSession.cwd}/${dirName}`;
+                currentSession.dirs.add(newDirPath);
+                return true;
+            }
+            if (base === "cd") {
+                const target = parts[1] || "~";
+                if (target === "~" || target === "/home/praktikan") {
+                    currentSession.cwd = "~";
+                    return true;
+                }
+                if (target === "..") {
+                    const lastSlash = currentSession.cwd.lastIndexOf("/");
+                    currentSession.cwd = lastSlash > 0 ? currentSession.cwd.slice(0, lastSlash) : "~";
+                    return true;
+                }
+                const candidate = currentSession.cwd === "~" ? `~/${target.replace(/\/$/, "")}` : `${currentSession.cwd}/${target.replace(/\/$/, "")}`;
+                if (currentSession.dirs.has(candidate)) {
+                    currentSession.cwd = candidate;
+                    return true;
+                } else {
+                    appendTerminalOutput(`<span class="text-red-400">bash: cd: ${escapeHtml(target)}: No such file or directory</span>`);
+                    return false;
+                }
+            }
+            if (base === "nano") {
+                const fileArg = parts[1];
+                if (!fileArg) {
+                    appendTerminalOutput(`<span class="text-red-400">nano: nama berkas belum diberikan.</span>`);
+                    return false;
+                }
+                openNanoEditor(fileArg);
+                return true;
+            }
+            if (base === "chmod") {
+                const mode = parts[1];
+                const fileArg = parts[2];
+                if ((mode !== "+x" && mode !== "755" && mode !== "777") || !fileArg) {
+                    appendTerminalOutput(`<span class="text-red-400">chmod: gunakan format 'chmod +x &lt;nama_berkas&gt;'</span>`);
+                    return false;
+                }
+                const key = resolveFileKey(fileArg);
+                if (!currentSession.vfs[key]) {
+                    appendTerminalOutput(`<span class="text-red-400">chmod: cannot access '${escapeHtml(fileArg)}': No such file or directory</span>`);
+                    return false;
+                }
+                currentSession.vfs[key].executable = true;
+                return true;
+            }
+            if (base === "rm") {
+                const target = parts[parts.length - 1];
+                const key = resolveFileKey(target);
+                delete currentSession.vfs[key];
+                return true;
+            }
+
+            // Perintah penghasil output teks (`echo`, `cat`, `sort`, `grep`, `wc`, `ls`)
+            const outText = evaluateCommandTextOutput(cleanCmd, inputRedirectFile);
+            if (outText === null) return false;
+
+            return outputOrRedirect(outText, redirectFile, isAppend, pipeToTeeFile);
+        }
+
+        function outputOrRedirect(text, redirectFile, isAppend, pipeToTeeFile) {
+            if (pipeToTeeFile) {
+                writeVfsFile(pipeToTeeFile, text, false);
+                if (text !== "") {
+                    appendTerminalOutput(`<pre class="text-gray-200 font-mono text-xs whitespace-pre-wrap">${escapeHtml(text)}</pre>`);
+                }
+                return true;
+            }
+            if (redirectFile) {
+                writeVfsFile(redirectFile, text, isAppend);
+                return true;
+            }
+            if (text !== "") {
+                appendTerminalOutput(`<pre class="text-gray-200 font-mono text-xs whitespace-pre-wrap">${escapeHtml(text)}</pre>`);
+            }
+            return true;
+        }
+
+        function runAtomicCommandForOutput(cmdStr) {
+            return evaluateCommandTextOutput(cmdStr, null);
+        }
+
+        function handleRedirectionAndPrint(remainderStr, textContent, pipeToTeeFile) {
+            let redirectFile = null;
+            let isAppend = false;
+            const appendMatch = remainderStr.match(/>>\s*([^\s>]+)/);
+            const writeMatch = remainderStr.match(/>\s*([^\s>]+)/);
+            if (appendMatch) {
+                redirectFile = appendMatch[1];
+                isAppend = true;
+            } else if (writeMatch) {
+                redirectFile = writeMatch[1];
+            }
+            return outputOrRedirect(textContent, redirectFile, isAppend, pipeToTeeFile);
+        }
+
+        function evaluateCommandTextOutput(cleanCmd, inputRedirectFile) {
+            const parts = cleanCmd.split(/\s+/);
+            const base = parts[0];
+
+            // 1. ECHO
+            if (base === "echo") {
+                let rawArg = cleanCmd.slice(4).trim();
+                if ((rawArg.startsWith('"') && rawArg.endsWith('"')) || (rawArg.startsWith("'") && rawArg.endsWith("'"))) {
+                    rawArg = rawArg.slice(1, -1);
+                }
+                return rawArg;
+            }
+
+            // 2. CAT
+            if (base === "cat") {
+                const fileName = parts[1] || inputRedirectFile;
+                if (!fileName) {
+                    appendTerminalOutput(`<span class="text-red-400">cat: missing file operand</span>`);
+                    return null;
+                }
+                const content = readVfsFileContent(fileName);
+                if (content === null) {
+                    appendTerminalOutput(`<span class="text-red-400">cat: ${escapeHtml(fileName)}: No such file or directory</span>`);
+                    return null;
+                }
+                if (fileName.replace(/^\.\//, "") === "status.txt") {
+                    currentSession.stats.lastCatStatus = true;
+                }
+                return content;
+            }
+
+            // 3. SORT
+            if (base === "sort") {
+                const fileName = parts[1] || inputRedirectFile;
+                if (!fileName) {
+                    appendTerminalOutput(`<span class="text-red-400">sort: missing file operand</span>`);
+                    return null;
+                }
+                const content = readVfsFileContent(fileName);
+                if (content === null) {
+                    appendTerminalOutput(`<span class="text-red-400">sort: cannot read: ${escapeHtml(fileName)}: No such file or directory</span>`);
+                    return null;
+                }
+                const sorted = getTrimmedLines(content).sort((a, b) => a.localeCompare(b));
+                return sorted.join("\n");
+            }
+
+            // 4. GREP
+            if (base === "grep") {
+                // Parse pattern & filename: mendukung spasi dengan atau tanpa tanda kutip
+                const grepMatch = cleanCmd.match(/^grep\s+(?:-[a-zA-Z]+\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s+(\S+)$/);
+                if (!grepMatch) {
+                    appendTerminalOutput(`<span class="text-red-400">grep: format perintah kurang tepat.</span>`);
+                    return null;
+                }
+                const pattern = grepMatch[1] || grepMatch[2] || grepMatch[3];
+                const fileName = grepMatch[4];
+                const content = readVfsFileContent(fileName);
+                if (content === null) {
+                    appendTerminalOutput(`<span class="text-red-400">grep: ${escapeHtml(fileName)}: No such file or directory</span>`);
+                    return null;
+                }
+                const lines = getTrimmedLines(content);
+                let regex;
+                try {
+                    regex = new RegExp(pattern);
+                } catch (err) {
+                    regex = null;
+                }
+                const matched = lines.filter(line => regex ? regex.test(line) : line.includes(pattern));
+                return matched.join("\n");
+            }
+
+            // 5. WC -L
+            if (base === "wc") {
+                const flag = parts[1];
+                const fileArg = parts[2] || inputRedirectFile;
+                if (flag !== "-l" || !fileArg) {
+                    appendTerminalOutput(`<span class="text-red-400">wc: gunakan 'wc -l &lt; nama_berkas'</span>`);
+                    return null;
+                }
+                const content = readVfsFileContent(fileArg);
+                if (content === null) {
+                    appendTerminalOutput(`<span class="text-red-400">bash: ${escapeHtml(fileArg)}: No such file or directory</span>`);
+                    return null;
+                }
+                const count = getTrimmedLines(content).length;
+                return String(count);
+            }
+
+            // 6. LS / LS -L
+            if (base === "ls") {
+                const isLong = parts.includes("-l") || parts.includes("-la") || parts.includes("-al");
+                const prefix = currentSession.cwd + "/";
+                const files = Object.keys(currentSession.vfs)
+                    .filter(k => k.startsWith(prefix))
+                    .map(k => ({ name: k.slice(prefix.length), ...currentSession.vfs[k] }));
+
+                if (files.length === 0) return "";
+                if (!isLong) {
+                    return files.map(f => f.name).join("  ");
+                }
+                return files.map(f => {
+                    const perm = f.executable ? "-rwxr-xr-x" : "-rw-r--r--";
+                    const size = (f.content || "").length;
+                    return `${perm} 1 praktikan praktikan ${String(size).padStart(4, " ")} Nov 17 09:30 ${f.name}`;
+                }).join("\n");
+            }
+
+            appendTerminalOutput(`<span class="text-red-400">${escapeHtml(base)}: command not found</span>`);
+            return null;
+        }
+
+        // =====================================================
+        // 9. SIMULASI EKSEKUSI SKRIP BASH INTERAKTIF (`pinjam.sh`, `sisa.sh`, `absen.sh`, `cek.sh`, `nilai.sh`)
+        // =====================================================
+        function handleScriptExecutionCommand(segmentStr, pipeToTeeFile) {
+            let redirectFile = null;
+            let cleanSeg = segmentStr;
+            const redirMatch = cleanSeg.match(/^(.*?)\s*>\s*([^\s>]+)\s*$/);
+            if (redirMatch) {
+                cleanSeg = redirMatch[1].trim();
+                redirectFile = redirMatch[2].trim();
+            }
+
+            const parts = cleanSeg.split(/\s+/);
+            let scriptName = "";
+            let requireExec = false;
+            let invokedViaBash = false;
+
+            if (cleanSeg.startsWith("./")) {
+                scriptName = parts[0].slice(2);
+                requireExec = true;
+            } else {
+                scriptName = (parts[1] || "").replace(/^\.\//, "");
+                invokedViaBash = true;
+            }
+
+            const key = resolveFileKey(scriptName);
+            const scriptObj = currentSession.vfs[key];
+            if (!scriptObj) {
+                appendTerminalOutput(`<span class="text-red-400">bash: ${escapeHtml(scriptName)}: No such file or directory</span>`);
+                return false;
+            }
+            if (requireExec && !scriptObj.executable) {
+                appendTerminalOutput(`<span class="text-red-400">bash: ./${escapeHtml(scriptName)}: Permission denied (Pastikan izin eksekusi telah diberikan!)</span>`);
+                return false;
+            }
+
+            // 1. Skrip Interaktif: `pinjam.sh` (Paket 1)
+            if (scriptName === "pinjam.sh") {
+                currentSession.interactivePrompt = {
+                    active: true,
+                    scriptName: "pinjam.sh",
+                    promptText: "Judul buku yang dipinjam: ",
+                    step: 1,
+                    tempData: {},
+                    pipeToTeeFile,
+                    redirectFile
+                };
+                updateTerminalPromptUI();
+                return true;
+            }
+
+            // 2. Skrip Non-Interaktif: `sisa.sh` (Paket 1)
+            if (scriptName === "sisa.sh") {
+                const total = parseInt(readVfsFileContent("total_buku.txt") || "0", 10);
+                const pinjam = parseInt(readVfsFileContent("jml_pinjam.txt") || "0", 10);
+                const sisa = total - pinjam;
+                let outLines = [`Buku tersedia: ${sisa}`];
+                if (sisa <= 3) {
+                    outLines.push("Stok menipis");
+                }
+                const finalOut = outLines.join("\n");
+                return outputOrRedirect(finalOut, redirectFile, false, pipeToTeeFile);
+            }
+
+            // 3. Skrip Interaktif: `absen.sh` (Paket 2)
+            if (scriptName === "absen.sh") {
+                currentSession.interactivePrompt = {
+                    active: true,
+                    scriptName: "absen.sh",
+                    promptText: "Masukkan nama: ",
+                    step: 1,
+                    tempData: { invokedViaBash, requireExec },
+                    pipeToTeeFile,
+                    redirectFile
+                };
+                updateTerminalPromptUI();
+                return true;
+            }
+
+            // 4. Skrip Non-Interaktif: `cek.sh` (Paket 2)
+            if (scriptName === "cek.sh") {
+                const jumlah = parseInt(readVfsFileContent("jumlah.txt") || "0", 10);
+                const hadirContent = readVfsFileContent("hadir.txt") || "";
+                const hadir = getTrimmedLines(hadirContent).length;
+                let finalOut = "";
+                if (hadir >= jumlah) {
+                    finalOut = "Absensi lengkap";
+                } else {
+                    finalOut = `Belum lengkap, kurang ${jumlah - hadir} orang`;
+                }
+                return outputOrRedirect(finalOut, redirectFile, false, pipeToTeeFile);
+            }
+
+            // 5. Skrip Interaktif Multi-Input: `nilai.sh` (Paket 3)
+            if (scriptName === "nilai.sh") {
+                currentSession.interactivePrompt = {
+                    active: true,
+                    scriptName: "nilai.sh",
+                    promptText: "Nama: ",
+                    step: 1,
+                    tempData: {},
+                    pipeToTeeFile,
+                    redirectFile
+                };
+                updateTerminalPromptUI();
+                return true;
+            }
+
+            appendTerminalOutput(`<span class="text-gray-300">[Menjalankan ${escapeHtml(scriptName)}...]</span>`);
+            return true;
+        }
+
+        function handleInteractiveScriptInput(userInput) {
+            const p = currentSession.interactivePrompt;
+            appendTerminalOutput(`<span class="text-amber-300 font-bold">${escapeHtml(p.promptText)}</span><span class="text-white">${escapeHtml(userInput)}</span>`);
+
+            if (p.scriptName === "pinjam.sh") {
+                const katalogContent = readVfsFileContent("katalog.txt") || "";
+                const lines = getTrimmedLines(katalogContent);
+                const found = userInput.length > 0 && lines.some(l => l.toLowerCase().includes(userInput.toLowerCase()));
+
+                if (found) {
+                    writeVfsFile("pinjam.txt", userInput, true);
+                    appendTerminalOutput(`<span class="text-emerald-300">Peminjaman dicatat</span>`);
+                    currentSession.stats.pinjamRuns.foundCount++;
+                } else {
+                    appendTerminalOutput(`<span class="text-amber-300">Buku tidak ditemukan</span>`);
+                    currentSession.stats.pinjamRuns.notFoundCount++;
+                }
+
+                p.active = false;
+                updateTerminalPromptUI();
+                evaluateSequentialTasks();
+                return;
+            }
+
+            if (p.scriptName === "absen.sh") {
+                const nama = userInput || "Peserta";
+                writeVfsFile("hadir.txt", nama, true);
+                appendTerminalOutput(`<span class="text-emerald-300">Halo ${escapeHtml(nama)}, kehadiran Anda tercatat</span>`);
+
+                currentSession.stats.absenRuns.totalRuns++;
+                if (p.tempData.invokedViaBash) currentSession.stats.absenRuns.bashRun = true;
+                if (p.tempData.requireExec) currentSession.stats.absenRuns.directRun = true;
+
+                p.active = false;
+                updateTerminalPromptUI();
+                evaluateSequentialTasks();
+                return;
+            }
+
+            if (p.scriptName === "nilai.sh") {
+                if (p.step === 1) {
+                    p.tempData.nama = userInput || "Praktikan";
+                    p.step = 2;
+                    p.promptText = "Nilai Laporan: ";
+                    updateTerminalPromptUI();
+                    return;
+                }
+                if (p.step === 2) {
+                    p.tempData.laporan = parseInt(userInput, 10) || 0;
+                    p.step = 3;
+                    p.promptText = "Nilai Posttest: ";
+                    updateTerminalPromptUI();
+                    return;
+                }
+                if (p.step === 3) {
+                    p.tempData.posttest = parseInt(userInput, 10) || 0;
+                    p.step = 4;
+                    p.promptText = "Nilai Praktik: ";
+                    updateTerminalPromptUI();
+                    return;
+                }
+                if (p.step === 4) {
+                    p.tempData.praktik = parseInt(userInput, 10) || 0;
+                    const { nama, laporan, posttest, praktik } = p.tempData;
+                    const nilai = Math.floor((laporan * 30) / 100) + Math.floor((posttest * 30) / 100) + Math.floor((praktik * 40) / 100);
+                    let grade = "C";
+                    if (nilai >= 85) grade = "A";
+                    else if (nilai >= 70) grade = "B";
+
+                    appendTerminalOutput(`<span class="text-white">Nilai akhir ${escapeHtml(nama)}: ${nilai}</span>`);
+                    appendTerminalOutput(`<span class="text-emerald-300 font-bold">Grade: ${grade}</span>`);
+
+                    writeVfsFile("rekap.txt", `${nama}:${nilai}:${grade}`, true);
+                    currentSession.stats.nilaiRuns.count++;
+                    if (grade === "A") currentSession.stats.nilaiRuns.hasGradeA = true;
+
+                    p.active = false;
+                    updateTerminalPromptUI();
+                    evaluateSequentialTasks();
+                    return;
+                }
+            }
+        }
+
+        // =====================================================
+        // 10. NANO EDITOR SIMULATOR
+        // =====================================================
+        function openNanoEditor(fileName) {
+            const cleanName = fileName.trim().replace(/^\.\//, "");
+            currentSession.nanoState.isOpen = true;
+            currentSession.nanoState.fileName = cleanName;
+
+            const overlay = document.getElementById("nanoEditorOverlay");
+            const textarea = document.getElementById("nanoTextarea");
+            const titleEl = document.getElementById("nanoFileNameTitle");
+            document.getElementById("nanoSavePromptBar").classList.add("hidden");
+
+            titleEl.textContent = `File: ${cleanName}`;
+            const existingContent = readVfsFileContent(cleanName);
+            textarea.value = existingContent !== null ? existingContent : "";
+
+            overlay.classList.remove("hidden");
+            overlay.classList.add("flex");
+            saveActiveSessionToStorage();
+            textarea.focus();
+        }
+
+        function triggerNanoCtrlX() {
+            document.getElementById("nanoSavePromptBar").classList.remove("hidden");
+        }
+
+        function confirmNanoSave() {
+            const fileName = currentSession.nanoState.fileName;
+            const content = document.getElementById("nanoTextarea").value.trim();
+
+            if (!content) {
+                showToast("Isi berkas masih kosong! Silakan tulis kode skrip terlebih dahulu.", "warning");
+                return;
+            }
+
+            writeVfsFile(fileName, content, false);
+            appendTerminalOutput(`<span class="text-gray-400">[GNU nano] Berkas <code>${escapeHtml(fileName)}</code> disimpan (${content.split("\n").length} baris).</span>`);
+
+            const overlay = document.getElementById("nanoEditorOverlay");
+            overlay.classList.add("hidden");
+            overlay.classList.remove("flex");
+            currentSession.nanoState.isOpen = false;
+            saveActiveSessionToStorage();
+
+            focusTerminalInput();
+            evaluateSequentialTasks();
+        }
+
+        function closeNanoWithoutSaving() {
+            const overlay = document.getElementById("nanoEditorOverlay");
+            overlay.classList.add("hidden");
+            overlay.classList.remove("flex");
+            currentSession.nanoState.isOpen = false;
+            saveActiveSessionToStorage();
+            appendTerminalOutput(`<span class="text-gray-500">[Keluar dari GNU nano tanpa menyimpan]</span>`);
+            focusTerminalInput();
+        }
+
+        // =====================================================
+        // 11. SUBMIT POST-TEST & FINAL SCORE SUMMARY MODAL
+        // =====================================================
+        function confirmSubmitPostTest() {
+            syncProgressToStudentRecord();
+            const doneCount = currentSession.completedTaskIds.size;
+            const statusObj = getScoreStatusInfo(doneCount);
+            const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
+
+            openModal({
+                title: "Hasil Akhir Post-Test Praktikum",
+                iconHtml: `<i class="fa-solid fa-award text-3xl"></i>`,
+                bodyHtml: `
+                    <div class="bg-gray-950 border border-gray-800 rounded-xl p-4 space-y-2 text-left">
+                        <div class="flex justify-between text-xs"><span class="text-gray-400">Nama Praktikan:</span> <span class="text-white font-semibold">${escapeHtml(currentSession.nama)}</span></div>
+                        <div class="flex justify-between text-xs"><span class="text-gray-400">NPM / Kelas:</span> <span class="text-white font-mono">${escapeHtml(currentSession.npm)} / Kelas ${currentSession.kelas}</span></div>
+                        <div class="flex justify-between text-xs"><span class="text-gray-400">Paket Studi Kasus:</span> <span class="text-ubuntu-orange font-semibold">${pkg ? pkg.code : '-'}</span></div>
+                        <div class="flex justify-between text-xs"><span class="text-gray-400">Task Terselesaikan:</span> <span class="text-white font-mono font-bold">${doneCount} dari ${TOTAL_TASKS} Task</span></div>
+                        <div class="flex justify-between text-xs"><span class="text-gray-400">Kategori Penilaian:</span> <span class="px-2 py-0.5 rounded text-[11px] font-semibold border ${statusObj.badgeClass}">${statusObj.label}</span></div>
+                        <div class="pt-2 border-t border-gray-800 flex items-center justify-between">
+                            <span class="text-sm font-bold text-gray-300">Nilai Post-Test:</span>
+                            <span class="text-3xl font-extrabold font-mono text-ubuntu-orange">${statusObj.score}</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400">
+                        Nilai Anda telah tersimpan otomatis dan dapat dilihat oleh Asisten Praktikum pada <strong>Portal Admin</strong>.
+                    </p>
+                `,
+                actionsHtml: `
+                    <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium">Lanjut Kerjakan</button>
+                    <button onclick="finishAndExitSession()" class="px-5 py-2 rounded-xl bg-ubuntu-orange hover:bg-[#5a7cad] text-white text-xs font-semibold shadow-lg">Selesai & Keluar</button>
+                `
+            });
+        }
+
+        function finishAndExitSession() {
+            syncProgressToStudentRecord();
+            closeModal();
+            currentSession.active = false;
+            currentSession.stage = "login";
+            localStorage.removeItem(STORAGE_KEYS.SESSION);
+            showToast("Post-Test berhasil dikumpulkan! Terima kasih.", "success");
+            switchPortal("praktikan");
+        }
+
+        // =====================================================
+        // 12. ADMIN PORTAL: LOGIN, TOKEN MANAGER & STUDENT TABLE
+        // =====================================================
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const userEl = document.getElementById("adminUser");
+            const passEl = document.getElementById("adminPass");
+            const u = userEl.value.trim();
+            const p = passEl.value.trim();
+
+            if ((u === "asisten" && p === "asprak123") || (u === "admin" && p === "admin123")) {
+                isAdminLoggedIn = true;
+                userEl.value = "";
+                passEl.value = "";
+                showToast("Login Admin berhasil!", "success");
+                switchPortal("admin");
+            } else {
+                passEl.value = "";
+                showToast("Username atau password Admin salah!", "error");
+            }
+        }
+
+        function logoutAdmin() {
+            isAdminLoggedIn = false;
+            const userEl = document.getElementById("adminUser");
+            const passEl = document.getElementById("adminPass");
+            if (userEl) userEl.value = "";
+            if (passEl) passEl.value = "";
+            switchPortal("admin");
+        }
+
+        function renderAdminDashboard() {
+            renderAdminTokenCards();
+            renderAdminStudentTable();
+            updateAdminStats();
+        }
+
+        function updateAdminStats() {
+            const total = studentsList.length;
+            const count80 = studentsList.filter(s => s.completedTasks >= TOTAL_TASKS).length;
+            const countZero = studentsList.filter(s => !s.completedTasks || s.completedTasks <= 0).length;
+            const countPartial = total - count80 - countZero;
+
+            document.getElementById("statTotalStudents").textContent = total;
+            document.getElementById("statScore80").textContent = count80;
+            document.getElementById("statScorePartial").textContent = countPartial;
+            document.getElementById("statScoreZero").textContent = countZero;
+        }
+
+        function renderAdminTokenCards() {
+            const grid = document.getElementById("adminTokenGrid");
+            grid.innerHTML = "";
+
+            ["A", "B", "C", "D", "E"].forEach(k => {
+                const item = classTokens[k];
+                const card = document.createElement("div");
+                card.className = `p-4 rounded-xl border transition ${
+                    item.active ? "bg-gray-950 border-gray-800" : "bg-red-950/10 border-red-900/30 opacity-75"
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-ubuntu-orange/20 text-ubuntu-orange border border-ubuntu-orange/30">
+                            KELAS ${k}
+                        </span>
+                        <button type="button" onclick="toggleClassTokenStatus('${k}')"
+                            class="px-2 py-0.5 rounded text-[11px] font-semibold transition ${
+                                item.active ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-red-500/20 text-red-400 border border-red-500/30"
+                            }">
+                            ${item.active ? "Aktif / Dibuka" : "Ditutup"}
+                        </button>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-[10px] uppercase tracking-wider text-gray-500">Kode Token Kelas ${k}</label>
+                        <div class="flex items-center space-x-1.5">
+                            <input type="text" id="tokenInput_${k}" value="${escapeHtml(item.token)}"
+                                onchange="updateClassTokenValue('${k}', this.value)"
+                                class="w-full px-2.5 py-1.5 bg-gray-900 border border-gray-800 rounded-lg font-mono font-bold text-sm text-white uppercase focus:outline-none focus:border-ubuntu-orange">
+                            <button type="button" onclick="generateSingleClassToken('${k}')" title="Acak Token Kelas ${k}"
+                                class="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 transition shrink-0">
+                                <i class="fa-solid fa-rotate text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function updateClassTokenValue(kelas, newVal) {
+            const clean = newVal.trim().toUpperCase();
+            if (!clean) {
+                showToast("Kode token tidak boleh kosong!", "error");
+                renderAdminTokenCards();
+                return;
+            }
+            classTokens[kelas].token = clean;
+            saveTokensToStorage();
+            showToast(`Token Kelas ${kelas} diubah menjadi ${clean}.`, "success");
+        }
+
+        function generateSingleClassToken(kelas) {
+            const randNum = Math.floor(100 + Math.random() * 900);
+            classTokens[kelas].token = `OS${kelas}-${randNum}`;
+            saveTokensToStorage();
+            renderAdminTokenCards();
+            showToast(`Token baru Kelas ${kelas}: ${classTokens[kelas].token}`, "info");
+        }
+
+        function randomizeAllTokens() {
+            ["A", "B", "C", "D", "E"].forEach(k => {
+                const randNum = Math.floor(100 + Math.random() * 900);
+                classTokens[k].token = `OS${k}-${randNum}`;
+            });
+            saveTokensToStorage();
+            renderAdminTokenCards();
+            showToast("Seluruh token Kelas A, B, C, D, dan E berhasil diacak!", "success");
+        }
+
+        function toggleClassTokenStatus(kelas) {
+            classTokens[kelas].active = !classTokens[kelas].active;
+            saveTokensToStorage();
+            renderAdminTokenCards();
+            const stateText = classTokens[kelas].active ? "DIBUKA" : "DITUTUP";
+            showToast(`Status akses Kelas ${kelas} sekarang ${stateText}.`, "info");
+        }
+
+        function setAdminClassFilter(kelas) {
+            adminSelectedClassFilter = kelas;
+            document.querySelectorAll(".admin-filter-btn").forEach(btn => {
+                if (btn.getAttribute("data-kelas") === kelas) {
+                    btn.className = "admin-filter-btn px-2.5 py-1 rounded-lg font-semibold bg-ubuntu-orange text-white";
+                } else {
+                    btn.className = "admin-filter-btn px-2.5 py-1 rounded-lg font-medium text-gray-400 hover:text-white";
+                }
+            });
+            renderAdminStudentTable();
+        }
+
+        function renderAdminStudentTable() {
+            const tbody = document.getElementById("adminStudentTableBody");
+            const query = (document.getElementById("adminSearchInput")?.value || "").trim().toLowerCase();
+            tbody.innerHTML = "";
+
+            const filtered = studentsList.filter(s => {
+                const matchClass = adminSelectedClassFilter === "ALL" || s.kelas === adminSelectedClassFilter;
+                const matchSearch = !query || s.nama.toLowerCase().includes(query) || s.npm.toLowerCase().includes(query);
+                return matchClass && matchSearch;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="py-8 text-center text-gray-500 text-xs">
+                            Belum ada data praktikan yang menyelesaikan post-test.
+                        </td>
+                    </tr>
+                `;
+                updateAdminStats();
+                return;
+            }
+
+            filtered.forEach((st, idx) => {
+                const done = st.completedTasks || 0;
+                const statusInfo = getScoreStatusInfo(done);
+                const pct = Math.round((done / TOTAL_TASKS) * 100);
+                const pkgLabel = st.paket === "1" ? "Soal 1 (Perpus)" : (st.paket === "2" ? "Soal 2 (Absensi)" : (st.paket === "3" ? "Soal 3 (Nilai)" : "Belum Pilih"));
+
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-gray-800/40 transition";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono text-gray-400">${idx + 1}</td>
+                    <td class="py-3 px-4 font-semibold text-white">${escapeHtml(st.nama)}</td>
+                    <td class="py-3 px-4 font-mono text-gray-300">${escapeHtml(st.npm)}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2.5 py-0.5 rounded-md font-bold text-xs bg-ubuntu-orange/15 text-ubuntu-orange border border-ubuntu-orange/30">
+                            ${st.kelas}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 font-mono text-xs text-gray-300">${pkgLabel}</td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-24 h-2 bg-gray-800 rounded-full overflow-hidden">
+                                <div class="h-full ${done === TOTAL_TASKS ? 'bg-emerald-500' : (done > 0 ? 'bg-amber-400' : 'bg-red-500')}" style="width: ${pct}%"></div>
+                            </div>
+                            <span class="font-mono text-xs text-gray-300">${done}/${TOTAL_TASKS} task</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold border ${statusInfo.badgeClass}">
+                            ${statusInfo.label}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="font-mono font-extrabold text-base ${
+                            statusInfo.score === 80 ? 'text-emerald-400' : (statusInfo.score === 0 ? 'text-red-400' : 'text-amber-300')
+                        }">
+                            ${statusInfo.score}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-right space-x-1">
+                        <button onclick="cycleStudentSimScore('${st.id}')" title="Ubah Simulasi Progress Task"
+                            class="px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-[11px] text-gray-300 transition">
+                            Ubah Progress
+                        </button>
+                        <button onclick="deleteStudentRecord('${st.id}')" title="Hapus Praktikan"
+                            class="px-2 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[11px] transition">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateAdminStats();
+        }
+
+        function handleAddStudentByAdmin(e) {
+            e.preventDefault();
+            const nama = document.getElementById("newStudentNama").value.trim();
+            const npm = document.getElementById("newStudentNpm").value.trim();
+            const kelas = document.getElementById("newStudentKelas").value;
+            const paket = document.getElementById("newStudentPaket").value;
+            const presetTasks = parseInt(document.getElementById("newStudentPreset").value, 10) || 0;
+
+            const newSt = {
+                id: "st-" + Date.now(),
+                nama,
+                npm,
+                kelas,
+                paket,
+                completedTasks: presetTasks,
+                timestamp: "Ditambahkan Admin"
+            };
+            studentsList.unshift(newSt);
+
+            saveStudentsToStorage();
+            pushCloudAction({ action: "upsert_student", student: newSt });
+            renderAdminStudentTable();
+            document.getElementById("newStudentNama").value = "";
+            document.getElementById("newStudentNpm").value = "";
+            showToast(`Praktikan ${nama} (Kelas ${kelas}) berhasil ditambahkan.`, "success");
+        }
+
+        function cycleStudentSimScore(studentId) {
+            const st = studentsList.find(s => s.id === studentId);
+            if (!st) return;
+            // Siklus: 0 task (Nilai 0) -> 5 task (Nilai 68) -> 9 task (Nilai 76) -> 10 task (Nilai 80) -> 0
+            if (st.completedTasks === 0) st.completedTasks = 5;
+            else if (st.completedTasks < 9) st.completedTasks = 9;
+            else if (st.completedTasks === 9) st.completedTasks = 10;
+            else st.completedTasks = 0;
+
+            saveStudentsToStorage();
+            pushCloudAction({ action: "upsert_student", student: st });
+            renderAdminStudentTable();
+            const info = getScoreStatusInfo(st.completedTasks);
+            showToast(`Progress ${st.nama} diubah ke ${st.completedTasks}/${TOTAL_TASKS} Task (Nilai: ${info.score})`, "info");
+        }
+
+        function deleteStudentRecord(studentId) {
+            const target = studentsList.find(s => s.id === studentId);
+            studentsList = studentsList.filter(s => s.id !== studentId);
+            saveStudentsToStorage();
+            pushCloudAction({ action: "delete_student", studentId, npm: target ? target.npm : "" });
+            renderAdminStudentTable();
+            showToast("Data praktikan dihapus.", "info");
+        }
+
+        function resetDemoData() {
+            classTokens = JSON.parse(JSON.stringify(DEFAULT_TOKENS));
+            studentsList = [];
+            localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(classTokens));
+            saveStudentsToStorage();
+            pushCloudAction({ action: "reset_all", tokens: classTokens });
+            renderAdminDashboard();
+            showToast("Seluruh data praktikan telah dikosongkan dan token Kelas A-E di-reset.", "success");
+        }
+
+        function exportGradesCSV() {
+            const headers = ["No", "Nama", "NPM", "Kelas", "Paket_Soal", "Task_Selesai", "Total_Task", "Status", "Nilai_Akhir"];
+            const rows = studentsList.map((s, idx) => {
+                const done = s.completedTasks || 0;
+                const info = getScoreStatusInfo(done);
+                return [
+                    idx + 1,
+                    `"${s.nama.replace(/"/g, '""')}"`,
+                    `"${s.npm}"`,
+                    s.kelas,
+                    `"Soal ${s.paket || '-'}"`,
+                    done,
+                    TOTAL_TASKS,
+                    `"${info.label}"`,
+                    info.score
+                ].join(",");
+            });
+
+            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Rekap_Nilai_PostTest_HOTS_Sistem_Operasi.csv");
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            showToast("File CSV Rekap Nilai berhasil diunduh!", "success");
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // =====================================================
+        // 13. INTERACTIVE TYPING & GAMEPLAY SOUND FX (WEB AUDIO API)
+        // =====================================================
+        let soundFxEnabled = true;
+        let audioCtx = null;
+        let noteStepIndex = 0;
+        let lastKeydownTime = 0;
+
+        // Tangga nada pentatonik ceria untuk variasi nada ketikan yang seru
+        const FUN_TYPING_NOTES = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 880.00, 783.99, 659.25, 587.33];
+
+        function getAudioContext() {
+            if (!soundFxEnabled) return null;
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === "suspended") {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function toggleSoundFx() {
+            soundFxEnabled = !soundFxEnabled;
+            const btn = document.getElementById("btnToggleSound");
+            const icon = document.getElementById("soundFxIcon");
+            const label = document.getElementById("soundFxLabel");
+
+            if (soundFxEnabled) {
+                if (btn) btn.className = "px-3 py-1.5 rounded-xl bg-gray-950 hover:bg-gray-800 border border-gray-800 text-xs font-medium text-emerald-300 transition flex items-center space-x-1.5";
+                if (icon) icon.className = "fa-solid fa-volume-high";
+                if (label) label.textContent = "Suara: ON";
+                playEnterSound();
+                showToast("Efek suara ketikan diaktifkan!", "info");
+            } else {
+                if (btn) btn.className = "px-3 py-1.5 rounded-xl bg-gray-950 hover:bg-gray-800 border border-gray-800 text-xs font-medium text-gray-500 transition flex items-center space-x-1.5";
+                if (icon) icon.className = "fa-solid fa-volume-xmark";
+                if (label) label.textContent = "Suara: OFF";
+                showToast("Efek suara ketikan dimatikan.", "info");
+            }
+        }
+
+        // Suara ketikan karakter: perpaduan tactile click + pop melodis pendek yang seru
+        function playCharacterKeySound() {
+            const ctx = getAudioContext();
+            if (!ctx) return;
+
+            const now = ctx.currentTime;
+            const baseFreq = FUN_TYPING_NOTES[noteStepIndex % FUN_TYPING_NOTES.length];
+            noteStepIndex++;
+            // Sedikit variasi acak agar terasa hidup
+            const freq = baseFreq * (0.98 + Math.random() * 0.04);
+
+            // 1) Nada Pop Melodis (Triangle)
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(freq, now);
+            osc.frequency.exponentialRampToValueAtTime(freq * 1.35, now + 0.045);
+
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.onended = () => {
+                osc.disconnect();
+                gain.disconnect();
+            };
+            osc.start(now);
+            osc.stop(now + 0.07);
+
+            // 2) Tactile Mechanical Click halus
+            const clickOsc = ctx.createOscillator();
+            const clickGain = ctx.createGain();
+            clickOsc.type = "sine";
+            clickOsc.frequency.setValueAtTime(1400, now);
+            clickOsc.frequency.exponentialRampToValueAtTime(280, now + 0.018);
+
+            clickGain.gain.setValueAtTime(0.06, now);
+            clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+
+            clickOsc.connect(clickGain);
+            clickGain.connect(ctx.destination);
+            clickOsc.onended = () => {
+                clickOsc.disconnect();
+                clickGain.disconnect();
+            };
+            clickOsc.start(now);
+            clickOsc.stop(now + 0.022);
+        }
+
+        // Suara tombol Spasi (tetap nyaring, seru, dan terdengar jelas di semua speaker)
+        function playSpaceKeySound() {
+            const ctx = getAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            // 1) Nada Pop Harmonis (Triangle di frekuensi menengah-atas agar tidak hilang di speaker laptop)
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(440.0, now);
+            osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.055);
+
+            gain.gain.setValueAtTime(0.14, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.onended = () => {
+                osc.disconnect();
+                gain.disconnect();
+            };
+            osc.start(now);
+            osc.stop(now + 0.08);
+
+            // 2) Tactile Click Spasi
+            const clickOsc = ctx.createOscillator();
+            const clickGain = ctx.createGain();
+            clickOsc.type = "triangle";
+            clickOsc.frequency.setValueAtTime(1100, now);
+            clickOsc.frequency.exponentialRampToValueAtTime(350, now + 0.022);
+
+            clickGain.gain.setValueAtTime(0.08, now);
+            clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+
+            clickOsc.connect(clickGain);
+            clickGain.connect(ctx.destination);
+            clickOsc.onended = () => {
+                clickOsc.disconnect();
+                clickGain.disconnect();
+            };
+            clickOsc.start(now);
+            clickOsc.stop(now + 0.028);
+        }
+
+        // Suara Backspace / Delete (swoosh turun)
+        function playBackspaceSound() {
+            const ctx = getAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(480, now);
+            osc.frequency.exponentialRampToValueAtTime(220, now + 0.055);
+
+            gain.gain.setValueAtTime(0.07, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.onended = () => {
+                osc.disconnect();
+                gain.disconnect();
+            };
+            osc.start(now);
+            osc.stop(now + 0.065);
+        }
+
+        // Suara Enter / Eksekusi Perintah (2 nada naik energik)
+        function playEnterSound() {
+            const ctx = getAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            [587.33, 880.0].forEach((freq, idx) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "triangle";
+                const start = now + idx * 0.055;
+                osc.frequency.setValueAtTime(freq, start);
+                gain.gain.setValueAtTime(0.12, start);
+                gain.gain.exponentialRampToValueAtTime(0.001, start + 0.11);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.onended = () => {
+                    osc.disconnect();
+                    gain.disconnect();
+                };
+                osc.start(start);
+                osc.stop(start + 0.12);
+            });
+        }
+
+        // Suara ketika Task Selesai (Arpeggio Kemenangan)
+        function playTaskSuccessSound() {
+            const ctx = getAudioContext();
+            if (!ctx) return;
+            const now = ctx.currentTime;
+
+            [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "triangle";
+                const start = now + idx * 0.07;
+                osc.frequency.setValueAtTime(freq, start);
+                gain.gain.setValueAtTime(0.14, start);
+                gain.gain.exponentialRampToValueAtTime(0.001, start + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.onended = () => {
+                    osc.disconnect();
+                    gain.disconnect();
+                };
+                osc.start(start);
+                osc.stop(start + 0.21);
+            });
+        }
+
+        function attachTypingSoundListeners() {
+            // Lepaskan fokus dari tombol setelah diklik agar tombol Spasi tidak memicu ulang tombol (seperti clear / reset)
+            document.addEventListener("click", function (e) {
+                const btn = e.target.closest("button");
+                if (btn) {
+                    btn.blur();
+                }
+            });
+
+            document.addEventListener("keydown", function (e) {
+                // Dukungan shortcut keyboard CTRL+X di dalam GNU nano agar tidak memotong (cut) baris teks
+                if (currentSession.nanoState && currentSession.nanoState.isOpen) {
+                    if (e.ctrlKey && e.key && e.key.toLowerCase() === "x") {
+                        e.preventDefault();
+                        triggerNanoCtrlX();
+                        playEnterSound();
+                        return;
+                    }
+                }
+
+                const el = e.target;
+                if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
+
+                if (e.key === "Enter") {
+                    lastKeydownTime = Date.now();
+                    playEnterSound();
+                } else if (e.key === "Backspace" || e.key === "Delete") {
+                    lastKeydownTime = Date.now();
+                    playBackspaceSound();
+                } else if (e.key === " " || e.code === "Space") {
+                    lastKeydownTime = Date.now();
+                    playSpaceKeySound();
+                } else if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    lastKeydownTime = Date.now();
+                    playCharacterKeySound();
+                }
+            });
+
+            // Fallback untuk perangkat mobile / virtual keyboard yang tidak selalu memicu keyCode per huruf
+            document.addEventListener("input", function (e) {
+                const el = e.target;
+                if (!el || (el.tagName !== "INPUT" && el.tagName !== "TEXTAREA")) return;
+                if (Date.now() - lastKeydownTime > 60) {
+                    playCharacterKeySound();
+                }
+                if (el.id === "nanoTextarea") {
+                    saveActiveSessionToStorage();
+                }
+            });
+        }
+
+        // =====================================================
+        // 14. INITIALIZATION ON WINDOW LOAD
+        // =====================================================
+        window.onload = async function () {
+            loadStorageData();
+            restoreActiveSessionFromStorage();
+            syncTokenHelperSelection();
+            attachTypingSoundListeners();
+            await fetchCloudState();
+
+            // Sinkronisasi data nilai praktikan di latar belakang saat Admin sedang membuka Dashboard (tanpa me-refresh halaman)
+            setInterval(() => {
+                if (isAdminLoggedIn && currentPortal === "admin") {
+                    fetchCloudState();
+                }
+            }, 8000);
+        };
+    </script>
+</body>
+</html>
