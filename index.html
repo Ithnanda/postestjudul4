@@ -535,13 +535,24 @@
             <!-- Top Admin Header -->
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <div class="flex items-center space-x-2">
+                    <div class="flex flex-wrap items-center gap-2">
                         <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Mode Asisten Praktikum</span>
-                        <span class="text-xs text-gray-500 font-mono">Modul 4: Shell Script & Crontab</span>
+                        <span id="supabaseStatusBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-database text-[10px]"></i>
+                            <span>Supabase: Belum Terhubung</span>
+                        </span>
                     </div>
                     <h2 class="text-xl font-bold text-white mt-1">Dashboard Manajemen Token Kelas & Nilai Praktikan</h2>
                 </div>
-                <div class="flex items-center space-x-2.5">
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="toggleSupabaseConfigPanel()" class="px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-ubuntu-orange border border-gray-700 text-xs font-semibold transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-cloud"></i>
+                        <span>Setup Supabase</span>
+                    </button>
+                    <button onclick="manualSyncCloud()" class="px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition flex items-center space-x-1.5" title="Tarik data terbaru dari Supabase">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Sync</span>
+                    </button>
                     <button onclick="exportGradesCSV()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition flex items-center space-x-1.5 shadow">
                         <i class="fa-solid fa-file-csv"></i>
                         <span>Export CSV</span>
@@ -554,6 +565,43 @@
                         <i class="fa-solid fa-right-from-bracket"></i>
                     </button>
                 </div>
+            </div>
+
+            <!-- Panel Konfigurasi Database Supabase (Collapsible) -->
+            <div id="supabaseConfigPanel" class="hidden bg-gray-900 border border-ubuntu-orange/40 rounded-2xl p-5 shadow-xl space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-database text-ubuntu-orange"></i>
+                            <span>Konfigurasi Database Cloud Supabase (Penyimpanan Lintas Perangkat / Vercel)</span>
+                        </h3>
+                        <p class="text-xs text-gray-400 mt-0.5">
+                            Agar seluruh praktikan dari berbagai perangkat tersimpan ke satu database terpusat saat di-deploy ke Vercel, isi <code>DEFAULT_SUPABASE_CONFIG</code> di dalam kode <code>index.html</code> (atau masukkan di bawah ini).
+                        </p>
+                    </div>
+                    <button type="button" onclick="openSupabaseSqlModal()" class="self-start sm:self-auto px-3 py-1.5 rounded-lg bg-ubuntu-orange/20 hover:bg-ubuntu-orange/30 text-ubuntu-orange border border-ubuntu-orange/30 text-xs font-semibold transition flex items-center space-x-1.5 shrink-0">
+                        <i class="fa-solid fa-code"></i>
+                        <span>Lihat / Salin SQL Tabel Supabase</span>
+                    </button>
+                </div>
+
+                <form onsubmit="handleSaveSupabaseConfig(event)" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                    <div class="md:col-span-5">
+                        <label class="block text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Supabase Project URL</label>
+                        <input type="url" id="inputSupabaseUrl" placeholder="https://xxxxxxxxxxxx.supabase.co"
+                            class="w-full px-3.5 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-ubuntu-orange">
+                    </div>
+                    <div class="md:col-span-5">
+                        <label class="block text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Supabase Anon Public Key</label>
+                        <input type="text" id="inputSupabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                            class="w-full px-3.5 py-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-ubuntu-orange">
+                    </div>
+                    <div class="md:col-span-2 flex items-center space-x-2">
+                        <button type="submit" class="w-full py-2 px-3 rounded-xl bg-ubuntu-orange hover:bg-[#5a7cad] text-white text-xs font-semibold transition">
+                            Simpan & Tes
+                        </button>
+                    </div>
+                </form>
             </div>
 
             <!-- Statistik Ringkas -->
@@ -1218,12 +1266,21 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
         }
 
         // =====================================================
-        // 3. STATE MANAGEMENT, SESSION PERSISTENCE & VERCEL CLOUD SYNC
+        // 3. STATE MANAGEMENT, SESSION PERSISTENCE & SUPABASE CLOUD DATABASE
         // =====================================================
+        // PENTING UNTUK DEPLOYMENT VERCEL:
+        // Isi `url` dan `anonKey` di bawah ini dengan Project URL & Anon Public Key Supabase Anda
+        // agar seluruh perangkat praktikan langsung terhubung otomatis ke database Supabase Anda!
+        const DEFAULT_SUPABASE_CONFIG = {
+            url: "https://ekbwnxiodgeqzjjtmdju.supabase.co",
+            anonKey: "sb_publishable_SR7X_nlZnSIJPnui2AwG9Q_4HUO4sd6"
+        };
+
         const STORAGE_KEYS = {
             TOKENS: "osquest_hots_tokens_v2",
             STUDENTS: "osquest_hots_students_v3",
-            SESSION: "osquest_hots_active_session_v3"
+            SESSION: "osquest_hots_active_session_v3",
+            SUPABASE_CFG: "osquest_hots_supabase_cfg_v1"
         };
 
         const DEFAULT_TOKENS = {
@@ -1241,6 +1298,7 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
         let adminSelectedClassFilter = "ALL";
         let isAdminLoggedIn = false;
         let currentPortal = "praktikan";
+        let isSupabaseConnected = false;
 
         // State Sesi Praktikan Aktif
         let currentSession = {
@@ -1278,6 +1336,152 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
             }
         };
 
+        function normalizeSupabaseUrl(rawUrl) {
+            return (rawUrl || "").trim().replace(/\/rest\/v1\/?$/i, "").replace(/\/$/, "");
+        }
+
+        function getSupabaseConfig() {
+            let url = normalizeSupabaseUrl(DEFAULT_SUPABASE_CONFIG.url);
+            let anonKey = (DEFAULT_SUPABASE_CONFIG.anonKey || "").trim();
+
+            if (!url || !anonKey) {
+                try {
+                    const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPABASE_CFG) || "{}");
+                    if (saved.url && saved.anonKey) {
+                        url = normalizeSupabaseUrl(saved.url);
+                        anonKey = saved.anonKey.trim();
+                    }
+                } catch (err) {
+                    // Abaikan
+                }
+            }
+
+            if (!url || !anonKey) return null;
+            return { url, anonKey };
+        }
+
+        function updateSupabaseBadgeUI(connected, labelText) {
+            isSupabaseConnected = connected;
+            const badge = document.getElementById("supabaseStatusBadge");
+            if (!badge) return;
+            if (connected) {
+                badge.className = "px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1.5";
+                badge.innerHTML = `<i class="fa-solid fa-cloud-check text-[10px]"></i><span>${labelText || "Supabase: Terhubung"}</span>`;
+            } else {
+                badge.className = "px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center space-x-1.5";
+                badge.innerHTML = `<i class="fa-solid fa-database text-[10px]"></i><span>${labelText || "Supabase: Belum Terhubung"}</span>`;
+            }
+        }
+
+        function toggleSupabaseConfigPanel() {
+            const panel = document.getElementById("supabaseConfigPanel");
+            if (!panel) return;
+            panel.classList.toggle("hidden");
+
+            const cfg = getSupabaseConfig();
+            if (cfg) {
+                const urlInput = document.getElementById("inputSupabaseUrl");
+                const keyInput = document.getElementById("inputSupabaseKey");
+                if (urlInput && !urlInput.value) urlInput.value = cfg.url;
+                if (keyInput && !keyInput.value) keyInput.value = cfg.anonKey;
+            }
+        }
+
+        async function handleSaveSupabaseConfig(e) {
+            e.preventDefault();
+            const url = normalizeSupabaseUrl(document.getElementById("inputSupabaseUrl").value);
+            const anonKey = document.getElementById("inputSupabaseKey").value.trim();
+
+            if (!url || !anonKey) {
+                showToast("Masukkan Supabase Project URL dan Anon Public Key!", "error");
+                return;
+            }
+
+            localStorage.setItem(STORAGE_KEYS.SUPABASE_CFG, JSON.stringify({ url, anonKey }));
+            const ok = await fetchCloudState();
+            if (ok) {
+                // Pastikan tabel token di Supabase juga terisi jika masih kosong
+                await pushCloudAction({ action: "save_tokens", tokens: classTokens });
+                showToast("Berhasil terhubung ke Database Supabase!", "success");
+                document.getElementById("supabaseConfigPanel")?.classList.add("hidden");
+            } else {
+                showToast("Gagal terhubung ke tabel Supabase. Pastikan Anda sudah menjalankan SQL Setup Tabel di Supabase SQL Editor!", "error");
+            }
+        }
+
+        async function manualSyncCloud() {
+            const ok = await fetchCloudState();
+            if (ok) {
+                showToast("Data berhasil disinkronkan dari Supabase!", "success");
+            } else {
+                showToast("Belum terhubung ke Supabase. Klik tombol 'Setup Supabase' untuk menghubungkan.", "warning");
+            }
+        }
+
+        function openSupabaseSqlModal() {
+            const sqlText = `-- Jalankan di menu "SQL Editor" -> "New Query" pada Dashboard Supabase Anda:
+
+CREATE TABLE IF NOT EXISTS public.posttest_tokens (
+    kelas TEXT PRIMARY KEY,
+    token TEXT NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT true,
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+INSERT INTO public.posttest_tokens (kelas, token, active) VALUES
+    ('A', 'OSA-401', true),
+    ('B', 'OSB-402', true),
+    ('C', 'OSC-403', true),
+    ('D', 'OSD-404', true),
+    ('E', 'OSE-405', true)
+ON CONFLICT (kelas) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS public.posttest_students (
+    npm TEXT PRIMARY KEY,
+    id TEXT NOT NULL,
+    nama TEXT NOT NULL,
+    kelas TEXT NOT NULL,
+    paket TEXT NOT NULL DEFAULT '-',
+    completed_tasks INTEGER NOT NULL DEFAULT 0,
+    score INTEGER NOT NULL DEFAULT 0,
+    timestamp TEXT NOT NULL DEFAULT 'Selesai Semua',
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.posttest_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.posttest_students ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public full access on posttest_tokens" ON public.posttest_tokens;
+CREATE POLICY "Allow public full access on posttest_tokens"
+    ON public.posttest_tokens FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public full access on posttest_students" ON public.posttest_students;
+CREATE POLICY "Allow public full access on posttest_students"
+    ON public.posttest_students FOR ALL USING (true) WITH CHECK (true);`;
+
+            openModal({
+                title: "SQL Setup Tabel Supabase",
+                iconHtml: `<i class="fa-solid fa-database text-2xl"></i>`,
+                bodyHtml: `
+                    <p class="text-xs text-gray-300 text-left">
+                        Buka project Supabase Anda &rarr; menu <strong>SQL Editor</strong> &rarr; <strong>New Query</strong>, tempelkan SQL di bawah ini lalu klik <strong>Run</strong>:
+                    </p>
+                    <pre id="supabaseSqlPre" class="bg-gray-950 border border-gray-800 rounded-xl p-3 text-left font-mono text-[11px] text-emerald-300 overflow-x-auto max-h-64 select-all">${escapeHtml(sqlText)}</pre>
+                `,
+                actionsHtml: `
+                    <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium">Tutup</button>
+                    <button onclick="copySupabaseSql()" class="px-4 py-2 rounded-xl bg-ubuntu-orange hover:bg-[#5a7cad] text-white text-xs font-semibold">Salin SQL</button>
+                `
+            });
+        }
+
+        function copySupabaseSql() {
+            const pre = document.getElementById("supabaseSqlPre");
+            if (!pre) return;
+            navigator.clipboard.writeText(pre.textContent || "");
+            showToast("SQL Setup Supabase berhasil disalin ke clipboard!", "success");
+        }
+
         function loadStorageData() {
             try {
                 // Bersihkan key data dummy lama jika masih ada
@@ -1294,9 +1498,72 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
             }
         }
 
-        // Sinkronisasi ke API Serverless Vercel (/api/sync) agar data praktikan & token tersimpan lintas perangkat
+        // Sinkronisasi ke Supabase REST API langsung (atau fallback ke /api/sync di Vercel)
         async function fetchCloudState() {
-            if (window.location.protocol === "file:") return false;
+            const sb = getSupabaseConfig();
+            if (sb) {
+                try {
+                    const headers = {
+                        apikey: sb.anonKey,
+                        Authorization: `Bearer ${sb.anonKey}`,
+                        "Content-Type": "application/json"
+                    };
+
+                    const [tokRes, stuRes] = await Promise.all([
+                        fetch(`${sb.url}/rest/v1/posttest_tokens?select=*`, { headers, cache: "no-store" }),
+                        fetch(`${sb.url}/rest/v1/posttest_students?select=*&order=updated_at.desc`, { headers, cache: "no-store" })
+                    ]);
+
+                    if (tokRes.ok && stuRes.ok) {
+                        const tokRows = await tokRes.json();
+                        const stuRows = await stuRes.json();
+
+                        if (Array.isArray(tokRows) && tokRows.length > 0) {
+                            tokRows.forEach(r => {
+                                if (r.kelas && classTokens[r.kelas]) {
+                                    classTokens[r.kelas] = {
+                                        kelas: r.kelas,
+                                        token: r.token,
+                                        active: Boolean(r.active)
+                                    };
+                                }
+                            });
+                            localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(classTokens));
+                        }
+
+                        if (Array.isArray(stuRows)) {
+                            studentsList = stuRows.map(r => ({
+                                id: r.id || ("st-" + r.npm),
+                                nama: r.nama,
+                                npm: r.npm,
+                                kelas: r.kelas,
+                                paket: r.paket || "-",
+                                completedTasks: typeof r.completed_tasks === "number" ? r.completed_tasks : 0,
+                                timestamp: r.timestamp || "Selesai"
+                            }));
+                            localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
+                        }
+
+                        updateSupabaseBadgeUI(true, "Supabase: Terhubung");
+                        if (isAdminLoggedIn && currentPortal === "admin") {
+                            const activeId = document.activeElement?.id || "";
+                            if (!activeId.startsWith("tokenInput_")) {
+                                renderAdminTokenCards();
+                            }
+                            renderAdminStudentTable();
+                        }
+                        return true;
+                    }
+                } catch (err) {
+                    // Lanjut ke fallback /api/sync
+                }
+            }
+
+            if (window.location.protocol === "file:") {
+                updateSupabaseBadgeUI(false, "Supabase: Belum Dikonfigurasi");
+                return false;
+            }
+
             try {
                 const res = await fetch("/api/sync", { method: "GET", cache: "no-store" });
                 if (!res.ok) return false;
@@ -1306,7 +1573,6 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
                     localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(classTokens));
                 }
                 if (data && Array.isArray(data.students)) {
-                    // Gabungkan data lokal yang belum terkirim (jika ada) dengan data server
                     const serverMap = new Map(data.students.map(s => [s.npm || s.id, s]));
                     studentsList.forEach(localSt => {
                         const key = localSt.npm || localSt.id;
@@ -1317,6 +1583,7 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
                     studentsList = Array.from(serverMap.values());
                     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
                 }
+                updateSupabaseBadgeUI(data && data.source === "supabase", data && data.source === "supabase" ? "Supabase (Vercel Env): Terhubung" : "Mode Server Sementara");
                 if (isAdminLoggedIn && currentPortal === "admin") {
                     const activeId = document.activeElement?.id || "";
                     if (!activeId.startsWith("tokenInput_")) {
@@ -1331,6 +1598,91 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
         }
 
         async function pushCloudAction(actionPayload) {
+            const sb = getSupabaseConfig();
+            if (sb) {
+                try {
+                    const headers = {
+                        apikey: sb.anonKey,
+                        Authorization: `Bearer ${sb.anonKey}`,
+                        "Content-Type": "application/json",
+                        Prefer: "resolution=merge-duplicates,return=minimal"
+                    };
+
+                    const { action } = actionPayload;
+
+                    if (action === "upsert_student" && actionPayload.student) {
+                        const st = actionPayload.student;
+                        const done = typeof st.completedTasks === "number" ? st.completedTasks : 0;
+                        const res = await fetch(`${sb.url}/rest/v1/posttest_students?on_conflict=npm`, {
+                            method: "POST",
+                            headers,
+                            body: JSON.stringify({
+                                npm: st.npm,
+                                id: st.id || ("st-" + Date.now()),
+                                nama: st.nama,
+                                kelas: st.kelas,
+                                paket: st.paket || "-",
+                                completed_tasks: done,
+                                score: calculateFinalScore(done),
+                                timestamp: st.timestamp || "Selesai",
+                                updated_at: new Date().toISOString()
+                            })
+                        });
+                        if (res.ok) {
+                            updateSupabaseBadgeUI(true, "Supabase: Tersimpan");
+                            return true;
+                        }
+                    }
+
+                    if (action === "delete_student") {
+                        const filter = actionPayload.npm
+                            ? `npm=eq.${encodeURIComponent(actionPayload.npm)}`
+                            : `id=eq.${encodeURIComponent(actionPayload.studentId)}`;
+                        const res = await fetch(`${sb.url}/rest/v1/posttest_students?${filter}`, {
+                            method: "DELETE",
+                            headers
+                        });
+                        if (res.ok) return true;
+                    }
+
+                    if (action === "save_tokens" && actionPayload.tokens) {
+                        const rows = Object.values(actionPayload.tokens).map(t => ({
+                            kelas: t.kelas,
+                            token: t.token,
+                            active: Boolean(t.active),
+                            updated_at: new Date().toISOString()
+                        }));
+                        const res = await fetch(`${sb.url}/rest/v1/posttest_tokens?on_conflict=kelas`, {
+                            method: "POST",
+                            headers,
+                            body: JSON.stringify(rows)
+                        });
+                        if (res.ok) return true;
+                    }
+
+                    if (action === "reset_all") {
+                        await fetch(`${sb.url}/rest/v1/posttest_students?npm=neq.__NONE__`, {
+                            method: "DELETE",
+                            headers
+                        });
+                        const rows = Object.values(actionPayload.tokens || DEFAULT_TOKENS).map(t => ({
+                            kelas: t.kelas,
+                            token: t.token,
+                            active: Boolean(t.active),
+                            updated_at: new Date().toISOString()
+                        }));
+                        await fetch(`${sb.url}/rest/v1/posttest_tokens?on_conflict=kelas`, {
+                            method: "POST",
+                            headers,
+                            body: JSON.stringify(rows)
+                        });
+                        return true;
+                    }
+                } catch (err) {
+                    // Fallback ke /api/sync
+                }
+            }
+
             if (window.location.protocol === "file:") return false;
             try {
                 const res = await fetch("/api/sync", {
@@ -1758,8 +2110,8 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
             switchPortal("praktikan");
         }
 
-        function syncProgressToStudentRecord() {
-            if (!currentSession.active || !currentSession.npm) return;
+        async function syncProgressToStudentRecord() {
+            if (!currentSession.active || !currentSession.npm) return false;
             const count = currentSession.completedTaskIds.size;
             const pkgId = currentSession.selectedPackageId || "-";
             const statusText = count === TOTAL_TASKS ? "Selesai Semua" : (count === 0 ? "Tidak Post-Test" : `Task ${count}/${TOTAL_TASKS}`);
@@ -1785,7 +2137,7 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
                 st.timestamp = statusText;
             }
             saveStudentsToStorage();
-            pushCloudAction({ action: "upsert_student", student: st });
+            return await pushCloudAction({ action: "upsert_student", student: st });
         }
 
         // =====================================================
@@ -2308,6 +2660,11 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
                 if (nextUnlocked && nextUnlocked.levelIndex !== currentSession.currentLevelIndex) {
                     currentSession.currentLevelIndex = nextUnlocked.levelIndex;
                     showToast(`Level ${nextUnlocked.levelNum} Terbuka!`, "info");
+                }
+
+                // Jika seluruh 10 task selesai, langsung simpan ke database Supabase & storage
+                if (currentSession.completedTaskIds.size >= TOTAL_TASKS) {
+                    syncProgressToStudentRecord();
                 }
             }
 
@@ -3079,13 +3436,13 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
             });
         }
 
-        function finishAndExitSession() {
-            syncProgressToStudentRecord();
+        async function finishAndExitSession() {
+            await syncProgressToStudentRecord();
             closeModal();
             currentSession.active = false;
             currentSession.stage = "login";
             localStorage.removeItem(STORAGE_KEYS.SESSION);
-            showToast("Post-Test berhasil dikumpulkan! Terima kasih.", "success");
+            showToast("Post-Test berhasil dikumpulkan dan tersimpan ke Database! Terima kasih.", "success");
             switchPortal("praktikan");
         }
 
