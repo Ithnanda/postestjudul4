@@ -536,7 +536,10 @@
             <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Mode Asisten Praktikum</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-user-shield text-[10px]"></i>
+                            <span id="adminSessionUserBadge">Sesi Admin: Aktif</span>
+                        </span>
                         <span id="supabaseStatusBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center space-x-1.5">
                             <i class="fa-solid fa-database text-[10px]"></i>
                             <span>Supabase: Belum Terhubung</span>
@@ -605,30 +608,37 @@
             </div>
 
             <!-- Statistik Ringkas -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl">
-                    <span class="text-xs text-gray-400">Total Praktikan Terdaftar</span>
+                    <span class="text-xs text-gray-400">Total Praktikan</span>
                     <div class="flex items-baseline justify-between mt-1">
                         <span id="statTotalStudents" class="text-2xl font-extrabold text-white font-mono">0</span>
                         <span class="text-xs text-gray-500">Kelas A - E</span>
                     </div>
                 </div>
                 <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl">
-                    <span class="text-xs text-gray-400">Berhasil Semua Kasus (Nilai 80)</span>
+                    <span class="text-xs text-gray-400">Sesi Aktif Mengerjakan</span>
+                    <div class="flex items-baseline justify-between mt-1">
+                        <span id="statActiveSessions" class="text-2xl font-extrabold text-ubuntu-orange font-mono">0</span>
+                        <span class="text-xs text-ubuntu-orange/80 font-mono">Live</span>
+                    </div>
+                </div>
+                <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl">
+                    <span class="text-xs text-gray-400">Berhasil Semua (Nilai 80)</span>
                     <div class="flex items-baseline justify-between mt-1">
                         <span id="statScore80" class="text-2xl font-extrabold text-emerald-400 font-mono">0</span>
                         <span class="text-xs text-emerald-500/80 font-mono">100% Task</span>
                     </div>
                 </div>
                 <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl">
-                    <span class="text-xs text-gray-400">Sebagian Kasus (Nilai 60 - 76)</span>
+                    <span class="text-xs text-gray-400">Sebagian (Nilai 60 - 76)</span>
                     <div class="flex items-baseline justify-between mt-1">
                         <span id="statScorePartial" class="text-2xl font-extrabold text-amber-400 font-mono">0</span>
                         <span class="text-xs text-amber-500/80 font-mono">Parsial</span>
                     </div>
                 </div>
                 <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl">
-                    <span class="text-xs text-gray-400">Tidak Post-Test (Nilai 0)</span>
+                    <span class="text-xs text-gray-400">Belum Selesai (Nilai 0)</span>
                     <div class="flex items-baseline justify-between mt-1">
                         <span id="statScoreZero" class="text-2xl font-extrabold text-red-400 font-mono">0</span>
                         <span class="text-xs text-red-500/80 font-mono">0 Task</span>
@@ -727,6 +737,7 @@
                                 <th class="py-3 px-4 text-center">Kelas</th>
                                 <th class="py-3 px-4">Paket Soal</th>
                                 <th class="py-3 px-4">Progress Task</th>
+                                <th class="py-3 px-4">Sesi & Waktu</th>
                                 <th class="py-3 px-4">Status Post-Test</th>
                                 <th class="py-3 px-4 text-center">Nilai Akhir</th>
                                 <th class="py-3 px-4 text-right">Aksi</th>
@@ -1280,6 +1291,7 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
             TOKENS: "osquest_hots_tokens_v2",
             STUDENTS: "osquest_hots_students_v3",
             SESSION: "osquest_hots_active_session_v3",
+            ADMIN_SESSION: "osquest_hots_admin_session_v1",
             SUPABASE_CFG: "osquest_hots_supabase_cfg_v1"
         };
 
@@ -1297,6 +1309,8 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
         let studentsList = [];
         let adminSelectedClassFilter = "ALL";
         let isAdminLoggedIn = false;
+        let adminSessionUser = "";
+        let adminSessionLoginAt = "";
         let currentPortal = "praktikan";
         let isSupabaseConnected = false;
 
@@ -1500,6 +1514,57 @@ CREATE POLICY "Allow public full access on posttest_students"
             }
         }
 
+        function formatIndoTime(dateObj = new Date()) {
+            try {
+                const pad = n => String(n).padStart(2, "0");
+                return `${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}:${pad(dateObj.getSeconds())} WIB`;
+            } catch (e) {
+                return "";
+            }
+        }
+
+        function saveAdminSessionToStorage() {
+            try {
+                if (isAdminLoggedIn) {
+                    localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify({
+                        loggedIn: true,
+                        username: adminSessionUser || "asisten",
+                        loginAt: adminSessionLoginAt || formatIndoTime()
+                    }));
+                } else {
+                    localStorage.removeItem(STORAGE_KEYS.ADMIN_SESSION);
+                }
+            } catch (e) {
+                // Abaikan
+            }
+        }
+
+        function restoreAdminSessionFromStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEYS.ADMIN_SESSION);
+                if (!raw) return;
+                const parsed = JSON.parse(raw);
+                if (parsed && parsed.loggedIn) {
+                    isAdminLoggedIn = true;
+                    adminSessionUser = parsed.username || "asisten";
+                    adminSessionLoginAt = parsed.loginAt || formatIndoTime();
+                    updateAdminSessionBadgeUI();
+                }
+            } catch (e) {
+                // Abaikan
+            }
+        }
+
+        function updateAdminSessionBadgeUI() {
+            const badgeEl = document.getElementById("adminSessionUserBadge");
+            if (!badgeEl) return;
+            if (isAdminLoggedIn) {
+                badgeEl.textContent = `Sesi Admin: ${adminSessionUser || "asisten"} (Login: ${adminSessionLoginAt || "Aktif"})`;
+            } else {
+                badgeEl.textContent = "Sesi Admin: Nonaktif";
+            }
+        }
+
         // Sinkronisasi ke Supabase REST API langsung (atau fallback ke /api/sync di Vercel)
         async function fetchCloudState() {
             const sb = getSupabaseConfig();
@@ -1534,15 +1599,31 @@ CREATE POLICY "Allow public full access on posttest_students"
                         }
 
                         if (Array.isArray(stuRows)) {
-                            studentsList = stuRows.map(r => ({
+                            const cloudList = stuRows.map(r => ({
                                 id: r.id || ("st-" + r.npm),
                                 nama: r.nama,
                                 npm: r.npm,
                                 kelas: r.kelas,
                                 paket: r.paket || "-",
                                 completedTasks: typeof r.completed_tasks === "number" ? r.completed_tasks : 0,
-                                timestamp: r.timestamp || "Selesai"
+                                timestamp: r.timestamp || "Selesai",
+                                updatedAt: r.updated_at || null
                             }));
+                            // Gabungkan data cloud dengan data lokal yang mungkin belum sempat ter-push agar tidak tertimpa kosong
+                            const mergedMap = new Map();
+                            cloudList.forEach(item => mergedMap.set(item.npm || item.id, item));
+                            studentsList.forEach(localSt => {
+                                const key = localSt.npm || localSt.id;
+                                if (!mergedMap.has(key)) {
+                                    mergedMap.set(key, localSt);
+                                } else {
+                                    const cloudItem = mergedMap.get(key);
+                                    if ((localSt.completedTasks || 0) > (cloudItem.completedTasks || 0)) {
+                                        mergedMap.set(key, localSt);
+                                    }
+                                }
+                            });
+                            studentsList = Array.from(mergedMap.values());
                             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
                         }
 
@@ -1555,6 +1636,10 @@ CREATE POLICY "Allow public full access on posttest_students"
                             renderAdminStudentTable();
                         }
                         return true;
+                    } else if (tokRes.status === 404 || stuRes.status === 404) {
+                        updateSupabaseBadgeUI(false, "Supabase: Tabel Belum Dibuat (Klik Setup Supabase -> SQL)");
+                    } else {
+                        updateSupabaseBadgeUI(false, `Supabase Error (${stuRes.status})`);
                     }
                 } catch (err) {
                     // Lanjut ke fallback /api/sync
@@ -1562,7 +1647,13 @@ CREATE POLICY "Allow public full access on posttest_students"
             }
 
             if (window.location.protocol === "file:") {
-                updateSupabaseBadgeUI(false, "Supabase: Belum Dikonfigurasi");
+                if (!isSupabaseConnected) {
+                    updateSupabaseBadgeUI(false, "Mode Lokal (Browser)");
+                }
+                if (isAdminLoggedIn && currentPortal === "admin") {
+                    renderAdminTokenCards();
+                    renderAdminStudentTable();
+                }
                 return false;
             }
 
@@ -1580,12 +1671,17 @@ CREATE POLICY "Allow public full access on posttest_students"
                         const key = localSt.npm || localSt.id;
                         if (!serverMap.has(key)) {
                             serverMap.set(key, localSt);
+                        } else {
+                            const srv = serverMap.get(key);
+                            if ((localSt.completedTasks || 0) > (srv.completedTasks || 0)) {
+                                serverMap.set(key, localSt);
+                            }
                         }
                     });
                     studentsList = Array.from(serverMap.values());
                     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
                 }
-                updateSupabaseBadgeUI(data && data.source === "supabase", data && data.source === "supabase" ? "Supabase (Vercel Env): Terhubung" : "Mode Server Sementara");
+                updateSupabaseBadgeUI(data && data.source === "supabase", data && data.source === "supabase" ? "Supabase (Vercel): Terhubung" : "Server Sinkronisasi: Aktif");
                 if (isAdminLoggedIn && currentPortal === "admin") {
                     const activeId = document.activeElement?.id || "";
                     if (!activeId.startsWith("tokenInput_")) {
@@ -1742,8 +1838,7 @@ CREATE POLICY "Allow public full access on posttest_students"
                     nanoState: currentSession.nanoState || { isOpen: false, fileName: "" },
                     nanoDraft: document.getElementById("nanoTextarea")?.value || "",
                     terminalOutputHtml: document.getElementById("terminalOutput")?.innerHTML || "",
-                    currentPortal: currentPortal || "praktikan",
-                    isAdminLoggedIn: isAdminLoggedIn
+                    currentPortal: currentPortal || "praktikan"
                 };
                 localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(payload));
             } catch (err) {
@@ -1758,7 +1853,6 @@ CREATE POLICY "Allow public full access on posttest_students"
                 const saved = JSON.parse(raw);
                 if (!saved) return;
 
-                isAdminLoggedIn = Boolean(saved.isAdminLoggedIn);
                 currentPortal = saved.currentPortal || "praktikan";
 
                 if (saved.active) {
@@ -1984,6 +2078,7 @@ CREATE POLICY "Allow public full access on posttest_students"
             currentSession.nama = nama;
             currentSession.npm = npm;
             currentSession.kelas = kelas;
+            currentSession.selectedPackageId = existingStudent ? existingStudent.paket : null;
 
             document.getElementById("inputNama").value = "";
             document.getElementById("inputNpm").value = "";
@@ -1991,6 +2086,8 @@ CREATE POLICY "Allow public full access on posttest_students"
 
             document.getElementById("selectQuestUserBadge").textContent = `${nama} (${npm} - Kelas ${kelas})`;
             switchPortal("praktikan");
+            // Daftarkan sesi login praktikan secara real-time ke Dashboard Admin
+            syncProgressToStudentRecord("Sesi Aktif");
             showToast(`Login berhasil! Silakan pilih 1 dari 3 Paket Studi Kasus HOTS.`, "success");
         }
 
@@ -2082,6 +2179,8 @@ CREATE POLICY "Allow public full access on posttest_students"
             updateTerminalPromptUI();
             updateGameplayUI();
             switchPortal("praktikan");
+            // Sinkronkan paket soal yang dipilih & sesi aktif ke Dashboard Admin
+            syncProgressToStudentRecord("Sesi Aktif");
             showToast(`Anda memilih ${pkg.code} (${pkg.name}). Kerjakan mulai dari Task #1 secara berurutan!`, "info");
         }
 
@@ -2107,18 +2206,27 @@ CREATE POLICY "Allow public full access on posttest_students"
             switchPortal("praktikan");
         }
 
-        function logoutPraktikan() {
+        async function logoutPraktikan() {
+            if (currentSession.active && currentSession.npm) {
+                await syncProgressToStudentRecord("Sesi Selesai");
+            }
             currentSession.active = false;
             currentSession.stage = "login";
             localStorage.removeItem(STORAGE_KEYS.SESSION);
             switchPortal("praktikan");
         }
 
-        async function syncProgressToStudentRecord() {
+        async function syncProgressToStudentRecord(sessionMode = "Sesi Aktif") {
             if (!currentSession.active || !currentSession.npm) return false;
             const count = currentSession.completedTaskIds.size;
             const pkgId = currentSession.selectedPackageId || "-";
-            const statusText = count === TOTAL_TASKS ? "Selesai Semua" : (count === 0 ? "Tidak Post-Test" : `Task ${count}/${TOTAL_TASKS}`);
+            const timeStr = formatIndoTime();
+            let statusText = "";
+            if (sessionMode === "Sesi Selesai" || count === TOTAL_TASKS) {
+                statusText = `Sesi Selesai (${timeStr})`;
+            } else {
+                statusText = `Sesi Aktif (${timeStr})`;
+            }
 
             let st = studentsList.find(s => s.npm === currentSession.npm || s.id === currentSession.studentId);
             if (!st) {
@@ -2129,18 +2237,26 @@ CREATE POLICY "Allow public full access on posttest_students"
                     kelas: currentSession.kelas,
                     paket: pkgId,
                     completedTasks: count,
-                    timestamp: statusText
+                    timestamp: statusText,
+                    updatedAt: new Date().toISOString()
                 };
                 studentsList.unshift(st);
             } else {
                 st.nama = currentSession.nama;
                 st.npm = currentSession.npm;
                 st.kelas = currentSession.kelas;
-                st.paket = pkgId;
-                st.completedTasks = count;
+                st.paket = pkgId !== "-" ? pkgId : (st.paket || "-");
+                // Pertahankan progress tertinggi jika praktikan sedang di menu pilih paket
+                if (currentSession.stage === "game" || count > (st.completedTasks || 0)) {
+                    st.completedTasks = count;
+                }
                 st.timestamp = statusText;
+                st.updatedAt = new Date().toISOString();
             }
             saveStudentsToStorage();
+            if (isAdminLoggedIn && currentPortal === "admin") {
+                renderAdminStudentTable();
+            }
             return await pushCloudAction({ action: "upsert_student", student: st });
         }
 
@@ -2867,10 +2983,9 @@ CREATE POLICY "Allow public full access on posttest_students"
                     showToast(`Level ${nextUnlocked.levelNum} Terbuka!`, "info");
                 }
 
-                // Jika seluruh 10 task selesai, langsung simpan ke database Supabase & storage
-                if (currentSession.completedTaskIds.size >= TOTAL_TASKS) {
-                    syncProgressToStudentRecord();
-                }
+                // Simpan progress praktikan secara real-time setiap kali ada task yang selesai ke Supabase & storage
+                const sessionState = currentSession.completedTaskIds.size >= TOTAL_TASKS ? "Sesi Selesai" : "Sesi Aktif";
+                syncProgressToStudentRecord(sessionState);
             }
 
             updateGameplayUI();
@@ -3888,8 +4003,8 @@ CREATE POLICY "Allow public full access on posttest_students"
         // 11. SUBMIT POST-TEST & FINAL SCORE SUMMARY MODAL
         // =====================================================
         function confirmSubmitPostTest() {
-            syncProgressToStudentRecord();
             const doneCount = currentSession.completedTaskIds.size;
+            syncProgressToStudentRecord(doneCount >= TOTAL_TASKS ? "Sesi Selesai" : "Sesi Aktif");
             const statusObj = getScoreStatusInfo(doneCount);
             const pkg = QUEST_PACKAGES[currentSession.selectedPackageId];
 
@@ -3920,7 +4035,7 @@ CREATE POLICY "Allow public full access on posttest_students"
         }
 
         async function finishAndExitSession() {
-            await syncProgressToStudentRecord();
+            await syncProgressToStudentRecord("Sesi Selesai");
             closeModal();
             currentSession.active = false;
             currentSession.stage = "login";
@@ -3930,7 +4045,7 @@ CREATE POLICY "Allow public full access on posttest_students"
         }
 
         // =====================================================
-        // 12. ADMIN PORTAL: LOGIN, TOKEN MANAGER & STUDENT TABLE
+        // 12. ADMIN PORTAL: LOGIN, SESSION, TOKEN MANAGER & STUDENT TABLE
         // =====================================================
         function handleAdminLogin(e) {
             e.preventDefault();
@@ -3941,9 +4056,13 @@ CREATE POLICY "Allow public full access on posttest_students"
 
             if ((u === "asisten" && p === "asprak123") || (u === "admin" && p === "admin123")) {
                 isAdminLoggedIn = true;
+                adminSessionUser = u;
+                adminSessionLoginAt = formatIndoTime();
+                saveAdminSessionToStorage();
+                updateAdminSessionBadgeUI();
                 userEl.value = "";
                 passEl.value = "";
-                showToast("Login Admin berhasil!", "success");
+                showToast("Login Admin berhasil! Sesi Admin telah disimpan.", "success");
                 switchPortal("admin");
             } else {
                 passEl.value = "";
@@ -3953,6 +4072,10 @@ CREATE POLICY "Allow public full access on posttest_students"
 
         function logoutAdmin() {
             isAdminLoggedIn = false;
+            adminSessionUser = "";
+            adminSessionLoginAt = "";
+            saveAdminSessionToStorage();
+            updateAdminSessionBadgeUI();
             const userEl = document.getElementById("adminUser");
             const passEl = document.getElementById("adminPass");
             if (userEl) userEl.value = "";
@@ -3961,18 +4084,29 @@ CREATE POLICY "Allow public full access on posttest_students"
         }
 
         function renderAdminDashboard() {
+            updateAdminSessionBadgeUI();
             renderAdminTokenCards();
             renderAdminStudentTable();
             updateAdminStats();
         }
 
+        function isStudentSessionActive(st) {
+            const ts = String(st.timestamp || "");
+            if (ts.startsWith("Sesi Aktif")) return true;
+            if (currentSession.active && currentSession.npm && st.npm === currentSession.npm) return true;
+            return false;
+        }
+
         function updateAdminStats() {
             const total = studentsList.length;
+            const activeCount = studentsList.filter(s => isStudentSessionActive(s)).length;
             const count80 = studentsList.filter(s => s.completedTasks >= TOTAL_TASKS).length;
             const countZero = studentsList.filter(s => !s.completedTasks || s.completedTasks <= 0).length;
             const countPartial = total - count80 - countZero;
 
             document.getElementById("statTotalStudents").textContent = total;
+            const activeEl = document.getElementById("statActiveSessions");
+            if (activeEl) activeEl.textContent = activeCount;
             document.getElementById("statScore80").textContent = count80;
             document.getElementById("statScorePartial").textContent = countPartial;
             document.getElementById("statScoreZero").textContent = countZero;
@@ -4083,8 +4217,8 @@ CREATE POLICY "Allow public full access on posttest_students"
             if (filtered.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" class="py-8 text-center text-gray-500 text-xs">
-                            Belum ada data praktikan yang menyelesaikan post-test.
+                        <td colspan="10" class="py-8 text-center text-gray-500 text-xs">
+                            Belum ada data atau sesi praktikan yang tercatat.
                         </td>
                     </tr>
                 `;
@@ -4097,6 +4231,8 @@ CREATE POLICY "Allow public full access on posttest_students"
                 const statusInfo = getScoreStatusInfo(done);
                 const pct = Math.round((done / TOTAL_TASKS) * 100);
                 const pkgLabel = st.paket === "1" ? "Soal 1 (Perpus)" : (st.paket === "2" ? "Soal 2 (Absensi)" : (st.paket === "3" ? "Soal 3 (Nilai)" : "Belum Pilih"));
+                const isSessionLive = isStudentSessionActive(st);
+                const sessionLabel = st.timestamp || (done === TOTAL_TASKS ? "Selesai Semua" : "Tersimpan");
 
                 const tr = document.createElement("tr");
                 tr.className = "hover:bg-gray-800/40 transition";
@@ -4117,6 +4253,16 @@ CREATE POLICY "Allow public full access on posttest_students"
                             </div>
                             <span class="font-mono text-xs text-gray-300">${done}/${TOTAL_TASKS} task</span>
                         </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                            isSessionLive
+                                ? 'bg-ubuntu-orange/20 text-ubuntu-orange border-ubuntu-orange/40'
+                                : 'bg-gray-800/80 text-gray-300 border-gray-700'
+                        }">
+                            <span class="w-1.5 h-1.5 rounded-full ${isSessionLive ? 'bg-ubuntu-orange animate-pulse' : 'bg-emerald-400'}"></span>
+                            <span>${escapeHtml(sessionLabel)}</span>
+                        </span>
                     </td>
                     <td class="py-3 px-4">
                         <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold border ${statusInfo.badgeClass}">
@@ -4514,21 +4660,36 @@ CREATE POLICY "Allow public full access on posttest_students"
         }
 
         // =====================================================
-        // 14. INITIALIZATION ON WINDOW LOAD
+        // 14. INITIALIZATION ON WINDOW LOAD & CROSS-TAB SYNC
         // =====================================================
         window.onload = async function () {
             loadStorageData();
+            restoreAdminSessionFromStorage();
             restoreActiveSessionFromStorage();
             syncTokenHelperSelection();
             attachTypingSoundListeners();
             await fetchCloudState();
 
-            // Sinkronisasi data nilai praktikan di latar belakang saat Admin sedang membuka Dashboard (tanpa me-refresh halaman)
+            // Sinkronisasi langsung antar-tab pada browser yang sama (ketika praktikan & admin dibuka di 2 tab berbeda)
+            window.addEventListener("storage", function (e) {
+                if (e.key === STORAGE_KEYS.STUDENTS || e.key === STORAGE_KEYS.TOKENS) {
+                    loadStorageData();
+                    if (isAdminLoggedIn && currentPortal === "admin") {
+                        renderAdminTokenCards();
+                        renderAdminStudentTable();
+                    }
+                }
+                if (e.key === STORAGE_KEYS.ADMIN_SESSION) {
+                    restoreAdminSessionFromStorage();
+                }
+            });
+
+            // Sinkronisasi data nilai & sesi praktikan di latar belakang saat Admin sedang membuka Dashboard (tanpa me-refresh halaman)
             setInterval(() => {
                 if (isAdminLoggedIn && currentPortal === "admin") {
                     fetchCloudState();
                 }
-            }, 8000);
+            }, 5000);
         };
     </script>
 </body>
