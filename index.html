@@ -1316,10 +1316,12 @@ cat rekap_urut.txt | tee laporan_akhir.txt</pre>
             dirs: new Set(["~"]),
             vfs: {}, // key: "dir/filename", value: { content: string, executable: boolean }
             stats: {
-                // Tracking eksekusi skrip interaktif untuk validasi HOTS
+                // Tracking eksekusi skrip interaktif & asal berkas untuk validasi HOTS yang ketat
                 pinjamRuns: { foundCount: 0, notFoundCount: 0, items: [] },
                 absenRuns: { directRun: false, bashRun: false, totalRuns: 0 },
-                nilaiRuns: { count: 0, hasGradeA: false }
+                nilaiRuns: { count: 0, hasGradeA: false },
+                fileOrigins: {},
+                chainedLsAndCatStatus: false
             },
             // Interactive Script Read Prompt Mode
             interactivePrompt: {
@@ -2056,7 +2058,9 @@ CREATE POLICY "Allow public full access on posttest_students"
             currentSession.stats = {
                 pinjamRuns: { foundCount: 0, notFoundCount: 0, items: [] },
                 absenRuns: { directRun: false, bashRun: false, totalRuns: 0 },
-                nilaiRuns: { count: 0, hasGradeA: false }
+                nilaiRuns: { count: 0, hasGradeA: false },
+                fileOrigins: {},
+                chainedLsAndCatStatus: false
             };
             currentSession.interactivePrompt = {
                 active: false,
@@ -2402,7 +2406,7 @@ CREATE POLICY "Allow public full access on posttest_students"
         }
 
         // =====================================================
-        // 7. SEQUENTIAL STATE EVALUATOR (VALIDASI OTOMATIS & RUNTUT)
+        // 7. SEQUENTIAL STATE EVALUATOR (VALIDASI OTOMATIS, KETAT & RUNTUT)
         // =====================================================
         function getVfsFile(dir, name) {
             return currentSession.vfs[`${dir}/${name}`] || null;
@@ -2413,11 +2417,130 @@ CREATE POLICY "Allow public full access on posttest_students"
             return content.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
         }
 
+        function stripBashComments(scriptContent) {
+            if (!scriptContent) return "";
+            return scriptContent
+                .split(/\r?\n/)
+                .map(l => l.trim())
+                .filter(l => l.length > 0 && !l.startsWith("#"))
+                .join("\n");
+        }
+
+        function validateBashScriptSyntax(scriptName, rawContent) {
+            const code = stripBashComments(rawContent);
+            if (!code) {
+                return { valid: false, reason: `Skrip ${scriptName} masih kosong.` };
+            }
+
+            if (scriptName === "pinjam.sh") {
+                if (!/\bread\b/.test(code)) {
+                    return { valid: false, reason: "pinjam.sh harus menggunakan perintah 'read' untuk meminta input judul buku." };
+                }
+                if (!/Judul buku yang dipinjam/i.test(code)) {
+                    return { valid: false, reason: "pinjam.sh harus menampilkan prompt 'Judul buku yang dipinjam: '." };
+                }
+                if (!/\bif\b/.test(code) || !/\bthen\b/.test(code) || !/\belse\b/.test(code) || !/\bfi\b/.test(code)) {
+                    return { valid: false, reason: "pinjam.sh harus memiliki struktur percabangan lengkap (if ... then ... else ... fi)." };
+                }
+                if (!/\bgrep\b/.test(code) || !/katalog\.txt/.test(code)) {
+                    return { valid: false, reason: "pinjam.sh harus memeriksa keberadaan judul buku di 'katalog.txt' menggunakan 'grep'." };
+                }
+                if (!/>>\s*["']?(?:\.\/)?pinjam\.txt["']?/.test(code)) {
+                    return { valid: false, reason: "pinjam.sh harus menambahkan judul buku ke baris baru menggunakan operator append '>> pinjam.txt' (bukan '>')." };
+                }
+                if (!/Peminjaman dicatat/.test(code) || !/Buku tidak ditemukan/.test(code)) {
+                    return { valid: false, reason: "pinjam.sh harus memuat pesan 'Peminjaman dicatat' dan 'Buku tidak ditemukan'." };
+                }
+                return { valid: true };
+            }
+
+            if (scriptName === "sisa.sh") {
+                if (!/total_buku\.txt/.test(code) || !/jml_pinjam\.txt/.test(code)) {
+                    return { valid: false, reason: "sisa.sh harus membaca nilai dari 'total_buku.txt' dan 'jml_pinjam.txt'." };
+                }
+                if (!/\$\(\([\s\S]*?-[\s\S]*?\)\)|expr\s+|let\s+/.test(code)) {
+                    return { valid: false, reason: "sisa.sh harus menghitung selisih stok menggunakan ekspresi aritmetika bash seperti $((total - pinjam))." };
+                }
+                if (!/Buku tersedia:\s*\$/.test(code)) {
+                    return { valid: false, reason: "sisa.sh harus menampilkan 'Buku tersedia: $<variabel_sisa>'." };
+                }
+                if (!/\bif\b/.test(code) || !/\bthen\b/.test(code) || !/\bfi\b/.test(code)) {
+                    return { valid: false, reason: "sisa.sh harus memiliki struktur percabangan 'if ... then ... fi' untuk memeriksa sisa stok." };
+                }
+                if (!/(-le\s+3|-lt\s+4|<=\s*3|<\s*4)/.test(code) || !/Stok menipis/.test(code)) {
+                    return { valid: false, reason: "sisa.sh harus memeriksa kondisi sisa <= 3 (misal: -le 3) dan menampilkan 'Stok menipis'." };
+                }
+                return { valid: true };
+            }
+
+            if (scriptName === "absen.sh") {
+                if (!/\bread\b/.test(code)) {
+                    return { valid: false, reason: "absen.sh harus menggunakan perintah 'read' untuk membaca input nama peserta." };
+                }
+                if (!/Masukkan nama/i.test(code)) {
+                    return { valid: false, reason: "absen.sh harus menampilkan pesan prompt 'Masukkan nama: '." };
+                }
+                if (!/>>\s*["']?(?:\.\/)?hadir\.txt["']?/.test(code)) {
+                    return { valid: false, reason: "absen.sh harus menambahkan nama ke baris baru menggunakan '>> hadir.txt' (bukan '>')." };
+                }
+                if (!/Halo\s+\$[a-zA-Z_][a-zA-Z0-9_]*.*kehadiran Anda tercatat/.test(code) && !/Halo\s+\$\{[a-zA-Z_][a-zA-Z0-9_]*\}.*kehadiran Anda tercatat/.test(code)) {
+                    return { valid: false, reason: "absen.sh harus menampilkan sapaan 'Halo $<variabel_nama>, kehadiran Anda tercatat'." };
+                }
+                return { valid: true };
+            }
+
+            if (scriptName === "cek.sh") {
+                if (!/jumlah\.txt/.test(code) || !/hadir\.txt/.test(code)) {
+                    return { valid: false, reason: "cek.sh harus membaca 'jumlah.txt' dan menghitung baris 'hadir.txt'." };
+                }
+                if (!/\bif\b/.test(code) || !/\bthen\b/.test(code) || !/\belse\b/.test(code) || !/\bfi\b/.test(code)) {
+                    return { valid: false, reason: "cek.sh harus menggunakan struktur percabangan lengkap (if ... then ... else ... fi)." };
+                }
+                if (!/(-ge\b|-gt\b|-le\b|-lt\b|>=\s*|<=\s*)/.test(code)) {
+                    return { valid: false, reason: "cek.sh harus membandingkan jumlah hadir dengan target kuota (misal menggunakan -ge)." };
+                }
+                if (!/\$\(\([\s\S]*?-[\s\S]*?\)\)|expr\s+|let\s+/.test(code)) {
+                    return { valid: false, reason: "cek.sh harus menghitung selisih kekurangan peserta menggunakan aritmetika bash seperti $((jumlah - hadir))." };
+                }
+                if (!/Absensi lengkap/.test(code) || !/Belum lengkap,\s*kurang\s+\$/.test(code)) {
+                    return { valid: false, reason: "cek.sh harus menampilkan 'Absensi lengkap' atau 'Belum lengkap, kurang $<selisih> orang'." };
+                }
+                return { valid: true };
+            }
+
+            if (scriptName === "nilai.sh") {
+                const hasReads = /\bread\b[\s\S]*?\bnama\b/.test(code)
+                    && /\bread\b[\s\S]*?\blaporan\b/.test(code)
+                    && /\bread\b[\s\S]*?\bposttest\b/.test(code)
+                    && /\bread\b[\s\S]*?\bpraktik\b/.test(code);
+                if (!hasReads) {
+                    return { valid: false, reason: "nilai.sh harus meminta 4 input menggunakan 'read' ke dalam variabel: nama, laporan, posttest, dan praktik." };
+                }
+                const hasArithmetic = /\$\(\([\s\S]*?\)\)/.test(code) && /30/.test(code) && /40/.test(code);
+                if (!hasArithmetic || !/Nilai akhir\s+\$?\{?nama\}?:\s*\$/.test(code)) {
+                    return { valid: false, reason: "nilai.sh harus menghitung rumus bobot (30%, 30%, 40%) dengan $((...)) dan mencetak 'Nilai akhir $nama: $nilai'." };
+                }
+                const hasBranching = /\bif\b/.test(code) && /\belif\b/.test(code) && /\belse\b/.test(code) && /\bfi\b/.test(code)
+                    && /85/.test(code) && /70/.test(code) && /Grade:\s*\$/.test(code);
+                if (!hasBranching) {
+                    return { valid: false, reason: "nilai.sh harus memiliki percabangan if / elif / else / fi untuk batas nilai 85 (A), 70 (B), dan C, serta menampilkan 'Grade: $grade'." };
+                }
+                const hasAppendRekap = />>\s*["']?(?:\.\/)?rekap\.txt["']?/.test(code) && /\$?\{?nama\}?:.*\$/.test(code);
+                if (!hasAppendRekap) {
+                    return { valid: false, reason: "nilai.sh harus menyimpan hasil dengan format '$nama:$nilai:$grade' menggunakan operator append '>> rekap.txt'." };
+                }
+                return { valid: true };
+            }
+
+            return { valid: true };
+        }
+
         function checkTaskConditionMet(taskId) {
             const pkgId = currentSession.selectedPackageId;
+            const fileOrigins = (currentSession.stats && currentSession.stats.fileOrigins) ? currentSession.stats.fileOrigins : {};
 
             // -----------------------------------------
-            // VALIDASI PAKET 1: PERPUSTAKAAN (DINAMIS SESUAI INPUT USER)
+            // VALIDASI PAKET 1: PERPUSTAKAAN (DINAMIS & KETAT)
             // -----------------------------------------
             if (pkgId === "1") {
                 const dir = "~/posttest_perpus";
@@ -2429,13 +2552,15 @@ CREATE POLICY "Allow public full access on posttest_students"
                     if (!f) return false;
                     const lines = getTrimmedLines(f.content);
                     // Bebas minimal 5 baris dengan format Judul:Penulis:Tahun (Tahun 4 digit angka)
-                    const formatRegex = /^[^:]+\s*:\s*[^:]+\s*:\s*\d{4}$/;
+                    const formatRegex = /^[^:]+:[^:]+:\d{4}$/;
                     return lines.length >= 5 && lines.every(l => formatRegex.test(l));
                 }
                 if (taskId === "P1_T3") {
                     const fKat = getVfsFile(dir, "katalog.txt");
                     const fUrut = getVfsFile(dir, "katalog_urut.txt");
+                    const origin = fileOrigins[`${dir}/katalog_urut.txt`];
                     if (!fKat || !fUrut) return false;
+                    if (!origin || origin.cmd !== "sort") return false;
                     const katLines = getTrimmedLines(fKat.content);
                     const urutLines = getTrimmedLines(fUrut.content);
                     if (katLines.length < 5 || urutLines.length !== katLines.length) return false;
@@ -2445,56 +2570,89 @@ CREATE POLICY "Allow public full access on posttest_students"
                 if (taskId === "P1_T4") {
                     const fKat = getVfsFile(dir, "katalog.txt");
                     const fPenulis = getVfsFile(dir, "buku_penulis.txt");
+                    const origin = fileOrigins[`${dir}/buku_penulis.txt`];
                     if (!fKat || !fPenulis) return false;
+                    if (!origin || origin.cmd !== "grep" || origin.sourceFile !== "katalog.txt") return false;
                     const katLines = getTrimmedLines(fKat.content);
                     const penulisLines = getTrimmedLines(fPenulis.content);
-                    // Pastikan buku_penulis.txt berisi minimal 1 baris dan setiap barisnya memang berasal dari katalog.txt
-                    return penulisLines.length >= 1 && penulisLines.every(line => katLines.includes(line));
+                    if (penulisLines.length < 1 || !penulisLines.every(line => katLines.includes(line))) return false;
+                    // Pastikan seluruh baris yang tersaring di buku_penulis.txt memiliki penulis yang sama dari katalog.txt
+                    const firstParts = penulisLines[0].split(":");
+                    if (firstParts.length < 3) return false;
+                    const targetAuthor = firstParts[1].trim().toLowerCase();
+                    const allSameAuthor = penulisLines.every(line => {
+                        const p = line.split(":");
+                        return p.length >= 3 && p[1].trim().toLowerCase() === targetAuthor;
+                    });
+                    const expectedAuthorBooks = katLines.filter(line => {
+                        const p = line.split(":");
+                        return p.length >= 3 && p[1].trim().toLowerCase() === targetAuthor;
+                    });
+                    return allSameAuthor && penulisLines.length === expectedAuthorBooks.length;
                 }
                 if (taskId === "P1_T5") {
                     const fKat = getVfsFile(dir, "katalog.txt");
                     const fTotal = getVfsFile(dir, "total_buku.txt");
+                    const origin = fileOrigins[`${dir}/total_buku.txt`];
                     if (!fKat || !fTotal) return false;
+                    if (!origin || origin.cmd !== "wc_pure") return false;
                     const expectedTotal = String(getTrimmedLines(fKat.content).length);
                     return fTotal.content.trim() === expectedTotal;
                 }
                 if (taskId === "P1_T6") {
                     const f = getVfsFile(dir, "pinjam.sh");
                     if (!f) return false;
-                    const c = f.content;
-                    return c.includes("read") && c.includes("grep") && c.includes("katalog.txt") && c.includes("pinjam.txt") && c.includes("Peminjaman dicatat") && c.includes("Buku tidak ditemukan");
+                    return validateBashScriptSyntax("pinjam.sh", f.content).valid;
                 }
                 if (taskId === "P1_T7") {
                     const fScript = getVfsFile(dir, "pinjam.sh");
                     const fPinjam = getVfsFile(dir, "pinjam.txt");
-                    if (!fScript || !fScript.executable || !fPinjam) return false;
+                    const fKat = getVfsFile(dir, "katalog.txt");
+                    if (!fScript || !fScript.executable || !fPinjam || !fKat) return false;
+                    if (!validateBashScriptSyntax("pinjam.sh", fScript.content).valid) return false;
                     const lines = getTrimmedLines(fPinjam.content);
-                    // Bebas judul buku apa saja dari katalog.txt (minimal 2 tercatat di pinjam.txt) + minimal 1 uji judul yang tidak ditemukan
-                    return lines.length >= 2 && currentSession.stats.pinjamRuns.foundCount >= 2 && currentSession.stats.pinjamRuns.notFoundCount >= 1;
+                    const katLines = getTrimmedLines(fKat.content);
+                    const allExistInKat = lines.every(item =>
+                        katLines.some(kl => {
+                            const titleOnly = (kl.split(":")[0] || "").trim().toLowerCase();
+                            return titleOnly === item.toLowerCase() || kl.toLowerCase().includes(item.toLowerCase());
+                        })
+                    );
+                    return lines.length >= 2 && allExistInKat && currentSession.stats.pinjamRuns.foundCount >= 2 && currentSession.stats.pinjamRuns.notFoundCount >= 1;
                 }
                 if (taskId === "P1_T8") {
                     const f = getVfsFile(dir, "jml_pinjam.txt");
                     const fPinjam = getVfsFile(dir, "pinjam.txt");
+                    const origin = fileOrigins[`${dir}/jml_pinjam.txt`];
                     if (!f || !fPinjam) return false;
+                    if (!origin || origin.cmd !== "wc_pure") return false;
                     const expectedCount = String(getTrimmedLines(fPinjam.content).length);
                     return f.content.trim() === expectedCount;
                 }
                 if (taskId === "P1_T9") {
                     const f = getVfsFile(dir, "sisa.sh");
                     if (!f) return false;
-                    const c = f.content;
-                    return c.includes("total_buku.txt") && c.includes("jml_pinjam.txt") && c.includes("Buku tersedia:") && c.includes("Stok menipis");
+                    return validateBashScriptSyntax("sisa.sh", f.content).valid;
                 }
                 if (taskId === "P1_T10") {
                     const fScript = getVfsFile(dir, "sisa.sh");
                     const fLap = getVfsFile(dir, "laporan_perpus.txt");
+                    const origin = fileOrigins[`${dir}/laporan_perpus.txt`];
                     if (!fScript || !fScript.executable || !fLap) return false;
-                    return fLap.content.includes("Buku tersedia:");
+                    if (!validateBashScriptSyntax("sisa.sh", fScript.content).valid) return false;
+                    // Wajib dieksekusi dengan pipe ke tee (`./sisa.sh | tee laporan_perpus.txt`) agar tampil di layar sekaligus tersimpan
+                    if (!origin || origin.via !== "tee" || origin.cmd !== "sisa.sh") return false;
+                    const total = parseInt(readVfsFileContent("total_buku.txt") || "0", 10);
+                    const pinjam = parseInt(readVfsFileContent("jml_pinjam.txt") || "0", 10);
+                    const sisa = total - pinjam;
+                    if (!fLap.content.includes(`Buku tersedia: ${sisa}`)) return false;
+                    if (sisa <= 3 && !fLap.content.includes("Stok menipis")) return false;
+                    return true;
                 }
             }
 
             // -----------------------------------------
-            // VALIDASI PAKET 2: ABSENSI WORKSHOP (DINAMIS SESUAI INPUT USER)
+            // VALIDASI PAKET 2: ABSENSI WORKSHOP (DINAMIS & KETAT)
             // -----------------------------------------
             if (pkgId === "2") {
                 const dir = "~/posttest_absensi";
@@ -2505,13 +2663,14 @@ CREATE POLICY "Allow public full access on posttest_students"
                     const f = getVfsFile(dir, "peserta.txt");
                     if (!f) return false;
                     const lines = getTrimmedLines(f.content);
-                    // Bebas nama siapa saja, minimal 5 baris nama peserta
                     return lines.length >= 5;
                 }
                 if (taskId === "P2_T3") {
                     const fPeserta = getVfsFile(dir, "peserta.txt");
                     const fUrut = getVfsFile(dir, "peserta_urut.txt");
+                    const origin = fileOrigins[`${dir}/peserta_urut.txt`];
                     if (!fPeserta || !fUrut) return false;
+                    if (!origin || origin.cmd !== "sort") return false;
                     const pLines = getTrimmedLines(fPeserta.content);
                     const uLines = getTrimmedLines(fUrut.content);
                     if (pLines.length < 5 || uLines.length !== pLines.length) return false;
@@ -2521,51 +2680,72 @@ CREATE POLICY "Allow public full access on posttest_students"
                 if (taskId === "P2_T4") {
                     const fUrut = getVfsFile(dir, "peserta_urut.txt");
                     const fJml = getVfsFile(dir, "jumlah.txt");
+                    const origin = fileOrigins[`${dir}/jumlah.txt`];
                     if (!fUrut || !fJml) return false;
+                    if (!origin || origin.cmd !== "wc_pure") return false;
                     const expectedCount = String(getTrimmedLines(fUrut.content).length);
                     return fJml.content.trim() === expectedCount;
                 }
                 if (taskId === "P2_T5") {
                     const f = getVfsFile(dir, "absen.sh");
                     if (!f) return false;
-                    const c = f.content;
-                    return c.includes("read") && c.includes("hadir.txt") && c.includes("kehadiran Anda tercatat");
+                    return validateBashScriptSyntax("absen.sh", f.content).valid;
                 }
                 if (taskId === "P2_T6") {
                     const fScript = getVfsFile(dir, "absen.sh");
                     const fHadir = getVfsFile(dir, "hadir.txt");
                     if (!fScript || !fScript.executable || !fHadir) return false;
+                    if (!validateBashScriptSyntax("absen.sh", fScript.content).valid) return false;
                     const lines = getTrimmedLines(fHadir.content);
-                    return lines.length >= 2 && currentSession.stats.absenRuns.totalRuns >= 2;
+                    // Wajib dijalankan 2 kali dengan kedua metode: ./absen.sh DAN bash absen.sh
+                    return lines.length >= 2
+                        && currentSession.stats.absenRuns.totalRuns >= 2
+                        && currentSession.stats.absenRuns.directRun === true
+                        && currentSession.stats.absenRuns.bashRun === true;
                 }
                 if (taskId === "P2_T7") {
                     const fHadir = getVfsFile(dir, "hadir.txt");
                     const fBackup = getVfsFile(dir, "hadir_backup.txt");
+                    const origin = fileOrigins[`${dir}/hadir_backup.txt`];
                     if (!fHadir || !fBackup) return false;
+                    // Wajib menggunakan pipe tee (`cat hadir.txt | tee hadir_backup.txt`)
+                    if (!origin || origin.via !== "tee") return false;
                     return fBackup.content.trim().length > 0 && fBackup.content.trim() === fHadir.content.trim();
                 }
                 if (taskId === "P2_T8") {
                     const f = getVfsFile(dir, "cek.sh");
                     if (!f) return false;
-                    const c = f.content;
-                    return c.includes("jumlah.txt") && c.includes("hadir.txt") && c.includes("Absensi lengkap") && c.includes("Belum lengkap");
+                    return validateBashScriptSyntax("cek.sh", f.content).valid;
                 }
                 if (taskId === "P2_T9") {
                     const fScript = getVfsFile(dir, "cek.sh");
                     const fStatus = getVfsFile(dir, "status.txt");
+                    const origin = fileOrigins[`${dir}/status.txt`];
                     if (!fScript || !fScript.executable || !fStatus) return false;
-                    return fStatus.content.includes("Belum lengkap") || fStatus.content.includes("Absensi lengkap");
+                    if (!validateBashScriptSyntax("cek.sh", fScript.content).valid) return false;
+                    if (!origin || origin.cmd !== "cek.sh") return false;
+                    const jumlah = parseInt(readVfsFileContent("jumlah.txt") || "0", 10);
+                    const hadir = getTrimmedLines(readVfsFileContent("hadir.txt") || "").length;
+                    const expectedStatus = hadir >= jumlah ? "Absensi lengkap" : `Belum lengkap, kurang ${jumlah - hadir} orang`;
+                    return fStatus.content.trim() === expectedStatus;
                 }
                 if (taskId === "P2_T10") {
                     const fDaftar = getVfsFile(dir, "daftar_file.txt");
                     const fStatus = getVfsFile(dir, "status.txt");
+                    const origin = fileOrigins[`${dir}/daftar_file.txt`];
                     if (!fDaftar || !fStatus) return false;
-                    return fDaftar.content.includes("peserta.txt") && fDaftar.content.includes("cek.sh") && currentSession.stats.lastCatStatus === true;
+                    // Wajib ls -l (memuat atribut izin akses -rw / -rwx) DAN dijalankan dalam satu rangkaian perintah (&&) bersama cat status.txt
+                    if (!origin || origin.cmd !== "ls_long") return false;
+                    const hasPermissions = /-(?:rwx|rw-)r--r--/.test(fDaftar.content);
+                    return hasPermissions
+                        && fDaftar.content.includes("peserta.txt")
+                        && fDaftar.content.includes("cek.sh")
+                        && currentSession.stats.chainedLsAndCatStatus === true;
                 }
             }
 
             // -----------------------------------------
-            // VALIDASI PAKET 3: KALKULASI NILAI
+            // VALIDASI PAKET 3: KALKULASI NILAI (DINAMIS & KETAT)
             // -----------------------------------------
             if (pkgId === "3") {
                 const dir = "~/posttest_nilai";
@@ -2573,30 +2753,46 @@ CREATE POLICY "Allow public full access on posttest_students"
                     return currentSession.dirs.has(dir) && currentSession.cwd === dir;
                 }
                 const fNilai = getVfsFile(dir, "nilai.sh");
-                const c = fNilai ? fNilai.content : "";
+                const code = fNilai ? stripBashComments(fNilai.content) : "";
 
                 if (taskId === "P3_T2") {
-                    return c.includes("read") && c.includes("nama") && c.includes("laporan") && c.includes("posttest") && c.includes("praktik");
+                    return /\bread\b[\s\S]*?\bnama\b/.test(code)
+                        && /\bread\b[\s\S]*?\blaporan\b/.test(code)
+                        && /\bread\b[\s\S]*?\bposttest\b/.test(code)
+                        && /\bread\b[\s\S]*?\bpraktik\b/.test(code);
                 }
                 if (taskId === "P3_T3") {
-                    return c.includes("30") && c.includes("40") && c.includes("Nilai akhir");
+                    return /\$\(\([\s\S]*?\)\)/.test(code)
+                        && /30/.test(code)
+                        && /40/.test(code)
+                        && /Nilai akhir\s+\$?\{?nama\}?:\s*\$/.test(code);
                 }
                 if (taskId === "P3_T4") {
-                    return c.includes("85") && c.includes("70") && c.includes("Grade:");
+                    return /\bif\b/.test(code)
+                        && /\belif\b/.test(code)
+                        && /\belse\b/.test(code)
+                        && /\bfi\b/.test(code)
+                        && /85/.test(code)
+                        && /70/.test(code)
+                        && /Grade:\s*\$/.test(code);
                 }
                 if (taskId === "P3_T5") {
-                    return c.includes("rekap.txt") && c.includes(">>");
+                    return validateBashScriptSyntax("nilai.sh", fNilai ? fNilai.content : "").valid;
                 }
                 if (taskId === "P3_T6") {
                     const fRekap = getVfsFile(dir, "rekap.txt");
                     if (!fNilai || !fNilai.executable || !fRekap) return false;
+                    if (!validateBashScriptSyntax("nilai.sh", fNilai.content).valid) return false;
                     const lines = getTrimmedLines(fRekap.content);
-                    return lines.length >= 3;
+                    const formatRegex = /^[^:]+:\d+:[ABC]$/;
+                    return lines.length >= 3 && currentSession.stats.nilaiRuns.count >= 3 && lines.every(l => formatRegex.test(l));
                 }
                 if (taskId === "P3_T7") {
                     const fUrut = getVfsFile(dir, "rekap_urut.txt");
                     const fRekap = getVfsFile(dir, "rekap.txt");
+                    const origin = fileOrigins[`${dir}/rekap_urut.txt`];
                     if (!fUrut || !fRekap) return false;
+                    if (!origin || origin.cmd !== "sort") return false;
                     const rLines = getTrimmedLines(fRekap.content);
                     const uLines = getTrimmedLines(fUrut.content);
                     if (rLines.length < 3 || uLines.length !== rLines.length) return false;
@@ -2606,23 +2802,32 @@ CREATE POLICY "Allow public full access on posttest_students"
                 if (taskId === "P3_T8") {
                     const fLulusA = getVfsFile(dir, "lulus_A.txt");
                     const fRekap = getVfsFile(dir, "rekap.txt");
+                    const origin = fileOrigins[`${dir}/lulus_A.txt`];
                     if (!fLulusA || !fRekap) return false;
+                    if (!origin || origin.cmd !== "grep" || origin.sourceFile !== "rekap.txt") return false;
                     const rLines = getTrimmedLines(fRekap.content);
                     const expectedALines = rLines.filter(l => l.endsWith(":A"));
                     const actualALines = getTrimmedLines(fLulusA.content);
+                    // Pastikan minimal ada 1 praktikan berpredikat A atau hasil grep cocok dengan pola :A
+                    if (!origin.pattern || !origin.pattern.includes("A")) return false;
                     return actualALines.length === expectedALines.length && actualALines.every((v, i) => v === expectedALines[i]);
                 }
                 if (taskId === "P3_T9") {
                     const fTotal = getVfsFile(dir, "total.txt");
                     const fRekap = getVfsFile(dir, "rekap.txt");
+                    const origin = fileOrigins[`${dir}/total.txt`];
                     if (!fTotal || !fRekap) return false;
+                    if (!origin || origin.cmd !== "wc_pure") return false;
                     const expected = String(getTrimmedLines(fRekap.content).length);
                     return fTotal.content.trim() === expected;
                 }
                 if (taskId === "P3_T10") {
                     const fLap = getVfsFile(dir, "laporan_akhir.txt");
                     const fUrut = getVfsFile(dir, "rekap_urut.txt");
+                    const origin = fileOrigins[`${dir}/laporan_akhir.txt`];
                     if (!fLap || !fUrut) return false;
+                    // Wajib menggunakan pipe tee (`cat rekap_urut.txt | tee laporan_akhir.txt`)
+                    if (!origin || origin.via !== "tee") return false;
                     return fLap.content.trim().length > 0 && fLap.content.trim() === fUrut.content.trim();
                 }
             }
@@ -2765,17 +2970,67 @@ CREATE POLICY "Allow public full access on posttest_students"
 
             if (!cmdLine) return;
 
+            if (!currentSession.stats.fileOrigins) {
+                currentSession.stats.fileOrigins = {};
+            }
+
+            // Validasi sintaks dasar: kutip tidak tertutup, atau `&&` / `|` menggantung di awal/akhir
+            if (hasUnclosedQuotes(cmdLine)) {
+                appendTerminalOutput(`<span class="text-red-400">bash: syntax error: tanda kutip (" atau ') belum ditutup dengan benar</span>`);
+                updateTerminalPromptUI();
+                return;
+            }
+            if (/^(&&|\|\|?)|(&&|\|\|?)\s*$/.test(cmdLine) || /&&\s*&&/.test(cmdLine) || /\|\s*\|/.test(cmdLine)) {
+                appendTerminalOutput(`<span class="text-red-400">bash: syntax error near unexpected token</span>`);
+                updateTerminalPromptUI();
+                return;
+            }
+
             // Pisahkan rangkaian perintah dengan `&&`
             const chainedCommands = splitByDoubleAmpersand(cmdLine);
+            let chainExecutedLsLongToDaftar = false;
+            let chainExecutedCatStatus = false;
+
             for (const singleCmd of chainedCommands) {
-                const shouldContinue = executeSinglePipelineCommand(singleCmd.trim());
-                if (!shouldContinue || currentSession.interactivePrompt.active || currentSession.nanoState.isOpen) {
+                const trimmedSingle = singleCmd.trim();
+                const shouldContinue = executeSinglePipelineCommand(trimmedSingle);
+                if (!shouldContinue) {
+                    break;
+                }
+                if (/^ls\s+(-l|-la|-al)\s*>\s*(?:\.\/)?daftar_file\.txt$/.test(trimmedSingle)) {
+                    chainExecutedLsLongToDaftar = true;
+                }
+                if (/^cat\s+(?:<\s*)?(?:\.\/)?status\.txt$/.test(trimmedSingle)) {
+                    chainExecutedCatStatus = true;
+                }
+                if (currentSession.interactivePrompt.active || currentSession.nanoState.isOpen) {
                     break;
                 }
             }
 
+            if (chainedCommands.length >= 2 && chainExecutedLsLongToDaftar && chainExecutedCatStatus) {
+                currentSession.stats.chainedLsAndCatStatus = true;
+            }
+
             updateTerminalPromptUI();
             evaluateSequentialTasks();
+        }
+
+        function hasUnclosedQuotes(str) {
+            let inQuotes = false;
+            let quoteChar = "";
+            for (let i = 0; i < str.length; i++) {
+                const ch = str[i];
+                if ((ch === '"' || ch === "'") && str[i - 1] !== "\\") {
+                    if (!inQuotes) {
+                        inQuotes = true;
+                        quoteChar = ch;
+                    } else if (quoteChar === ch) {
+                        inQuotes = false;
+                    }
+                }
+            }
+            return inQuotes;
         }
 
         function splitByDoubleAmpersand(str) {
@@ -2833,6 +3088,39 @@ CREATE POLICY "Allow public full access on posttest_students"
             return result;
         }
 
+        function findInvalidRedirectionSyntax(str) {
+            let inQuotes = false;
+            let quoteChar = "";
+            let unquoted = "";
+            for (let i = 0; i < str.length; i++) {
+                const ch = str[i];
+                if ((ch === '"' || ch === "'") && str[i - 1] !== "\\") {
+                    if (!inQuotes) {
+                        inQuotes = true;
+                        quoteChar = ch;
+                    } else if (quoteChar === ch) {
+                        inQuotes = false;
+                    }
+                    unquoted += " ";
+                } else {
+                    unquoted += inQuotes ? "x" : ch;
+                }
+            }
+            // Tolak `>>>`, `<<`, `<>`, `><`, atau `>` / `<` di akhir tanpa target berkas
+            if (/>>>|<<|<>|></.test(unquoted)) {
+                return "bash: syntax error near unexpected redirection token";
+            }
+            if (/[><]\s*$/.test(unquoted)) {
+                return "bash: syntax error near unexpected token `newline'";
+            }
+            // Hitung jumlah operator output redirection (`>>` atau `>`)
+            const outRedirs = unquoted.match(/>>|>/g);
+            if (outRedirs && outRedirs.length > 1) {
+                return "bash: syntax error: terlalu banyak operator pengalihan output (>) dalam satu perintah";
+            }
+            return null;
+        }
+
         function resolveFileKey(fileName) {
             const clean = fileName.trim().replace(/^\.\//, "");
             if (clean.startsWith("~/")) {
@@ -2841,7 +3129,7 @@ CREATE POLICY "Allow public full access on posttest_students"
             return `${currentSession.cwd}/${clean}`;
         }
 
-        function writeVfsFile(fileName, content, append = false) {
+        function writeVfsFile(fileName, content, append = false, originMeta = null) {
             const key = resolveFileKey(fileName);
             const existing = currentSession.vfs[key];
             if (append && existing) {
@@ -2853,6 +3141,12 @@ CREATE POLICY "Allow public full access on posttest_students"
                     executable: existing ? existing.executable : false
                 };
             }
+            if (!currentSession.stats.fileOrigins) {
+                currentSession.stats.fileOrigins = {};
+            }
+            if (originMeta) {
+                currentSession.stats.fileOrigins[key] = originMeta;
+            }
         }
 
         function readVfsFileContent(fileName) {
@@ -2863,25 +3157,49 @@ CREATE POLICY "Allow public full access on posttest_students"
 
         // Eksekusi satu pipeline perintah (mendukung `|`, `>`, `>>`, `<`)
         function executeSinglePipelineCommand(cmdStr) {
-            const pipeSegments = splitByPipe(cmdStr);
+            const redirErr = findInvalidRedirectionSyntax(cmdStr);
+            if (redirErr) {
+                appendTerminalOutput(`<span class="text-red-400">${escapeHtml(redirErr)}</span>`);
+                return false;
+            }
 
-            // Cek apakah ada pipe ke `tee <file>`
+            const pipeSegments = splitByPipe(cmdStr);
+            if (pipeSegments.length > 2) {
+                appendTerminalOutput(`<span class="text-red-400">bash: pipeline lebih dari 2 tahap tidak didukung pada simulasi ini</span>`);
+                return false;
+            }
+
+            // Cek apakah ada pipe ke `tee <file>` atau `wc -l`
             let pipeToTeeFile = null;
             let mainSegment = pipeSegments[0];
 
-            if (pipeSegments.length === 2 && pipeSegments[1].startsWith("tee ")) {
-                const teeArgs = pipeSegments[1].slice(4).trim().split(/\s+/);
-                pipeToTeeFile = teeArgs[0];
-            } else if (pipeSegments.length === 2 && pipeSegments[1].startsWith("wc -l")) {
-                // Contoh: cat katalog.txt | wc -l > total_buku.txt
-                const firstOut = runAtomicCommandForOutput(pipeSegments[0]);
-                if (firstOut === null) return false;
-                const lineCount = String(getTrimmedLines(firstOut).length);
-                return handleRedirectionAndPrint(pipeSegments[1].replace(/^wc\s+-l/, "").trim(), lineCount, null);
+            if (pipeSegments.length === 2) {
+                const secondSeg = pipeSegments[1].trim();
+                const teeMatch = secondSeg.match(/^tee\s+([^\s><|&]+)$/);
+                const wcPipeMatch = secondSeg.match(/^wc\s+-l(?:\s*(>>|>)\s*([^\s><|&]+))?$/);
+
+                if (teeMatch) {
+                    pipeToTeeFile = teeMatch[1];
+                } else if (wcPipeMatch) {
+                    // Contoh: cat katalog.txt | wc -l > total_buku.txt
+                    const firstResult = evaluateCommandTextOutput(pipeSegments[0], null);
+                    if (!firstResult || firstResult.text === null) return false;
+                    const lineCount = String(getTrimmedLines(firstResult.text).length);
+                    const op = wcPipeMatch[1];
+                    const targetF = wcPipeMatch[2] || null;
+                    return outputOrRedirect(lineCount, targetF, op === ">>", null, {
+                        cmd: "wc_pure",
+                        sourceFile: firstResult.meta ? firstResult.meta.sourceFile : null
+                    });
+                } else {
+                    const unknownPipeCmd = secondSeg.split(/\s+/)[0];
+                    appendTerminalOutput(`<span class="text-red-400">bash: ${escapeHtml(secondSeg)}: format pipe tidak valid atau perintah '${escapeHtml(unknownPipeCmd)}' tidak tepat</span>`);
+                    return false;
+                }
             }
 
             // Cek apakah perintah berupa eksekusi skrip (`./nama.sh` atau `bash nama.sh`)
-            if (mainSegment.startsWith("./") || mainSegment.startsWith("bash ") || mainSegment.startsWith("sh ")) {
+            if (mainSegment.startsWith("./") || mainSegment.startsWith("bash ") || mainSegment === "bash" || mainSegment.startsWith("sh ") || mainSegment === "sh") {
                 return handleScriptExecutionCommand(mainSegment, pipeToTeeFile);
             }
 
@@ -2891,14 +3209,14 @@ CREATE POLICY "Allow public full access on posttest_students"
             let inputRedirectFile = null;
             let cleanCmd = mainSegment;
 
-            // Cek `>>` atau `>`
-            const appendMatch = cleanCmd.match(/^(.*?)\s*>>\s*([^\s>]+)\s*$/);
+            // Cek `>>` atau `>` di luar tanda kutip
+            const appendMatch = cleanCmd.match(/^(.*?)\s*>>\s*([^\s><|&]+)\s*$/);
             if (appendMatch) {
                 cleanCmd = appendMatch[1].trim();
                 redirectFile = appendMatch[2].trim();
                 isAppend = true;
             } else {
-                const writeMatch = cleanCmd.match(/^(.*?)\s*>\s*([^\s>]+)\s*$/);
+                const writeMatch = cleanCmd.match(/^(.*?)\s*>\s*([^\s><|&]+)\s*$/);
                 if (writeMatch) {
                     cleanCmd = writeMatch[1].trim();
                     redirectFile = writeMatch[2].trim();
@@ -2907,10 +3225,15 @@ CREATE POLICY "Allow public full access on posttest_students"
             }
 
             // Cek `<`
-            const inputMatch = cleanCmd.match(/^(.*?)\s*<\s*([^\s<]+)\s*$/);
+            const inputMatch = cleanCmd.match(/^(.*?)\s*<\s*([^\s><|&]+)\s*$/);
             if (inputMatch) {
                 cleanCmd = inputMatch[1].trim();
                 inputRedirectFile = inputMatch[2].trim();
+            }
+
+            if (!cleanCmd) {
+                appendTerminalOutput(`<span class="text-red-400">bash: syntax error: perintah utama sebelum redirection tidak ditemukan</span>`);
+                return false;
             }
 
             const parts = cleanCmd.split(/\s+/);
@@ -2918,6 +3241,10 @@ CREATE POLICY "Allow public full access on posttest_students"
 
             // Perintah non-output yang mengubah state
             if (base === "clear") {
+                if (parts.length > 1) {
+                    appendTerminalOutput(`<span class="text-red-400">clear: terlalu banyak argumen</span>`);
+                    return false;
+                }
                 clearTerminal();
                 return true;
             }
@@ -2926,20 +3253,32 @@ CREATE POLICY "Allow public full access on posttest_students"
                 return true;
             }
             if (base === "pwd") {
+                if (parts.length > 1) {
+                    appendTerminalOutput(`<span class="text-red-400">pwd: terlalu banyak argumen</span>`);
+                    return false;
+                }
                 const pwdOut = currentSession.cwd.replace(/^~/, "/home/praktikan");
-                return outputOrRedirect(pwdOut, redirectFile, isAppend, pipeToTeeFile);
+                return outputOrRedirect(pwdOut, redirectFile, isAppend, pipeToTeeFile, { cmd: "pwd" });
             }
             if (base === "mkdir") {
-                const dirName = parts[1];
-                if (!dirName) {
+                if (parts.length < 2) {
                     appendTerminalOutput(`<span class="text-red-400">mkdir: missing operand</span>`);
                     return false;
                 }
+                if (parts.length > 2 || parts[1].startsWith("-")) {
+                    appendTerminalOutput(`<span class="text-red-400">mkdir: gunakan format 'mkdir &lt;nama_direktori&gt;' (satu nama direktori tanpa spasi)</span>`);
+                    return false;
+                }
+                const dirName = parts[1];
                 const newDirPath = currentSession.cwd === "~" ? `~/${dirName}` : `${currentSession.cwd}/${dirName}`;
                 currentSession.dirs.add(newDirPath);
                 return true;
             }
             if (base === "cd") {
+                if (parts.length > 2) {
+                    appendTerminalOutput(`<span class="text-red-400">bash: cd: too many arguments</span>`);
+                    return false;
+                }
                 const target = parts[1] || "~";
                 if (target === "~" || target === "/home/praktikan") {
                     currentSession.cwd = "~";
@@ -2960,19 +3299,22 @@ CREATE POLICY "Allow public full access on posttest_students"
                 }
             }
             if (base === "nano") {
-                const fileArg = parts[1];
-                if (!fileArg) {
-                    appendTerminalOutput(`<span class="text-red-400">nano: nama berkas belum diberikan.</span>`);
+                if (parts.length !== 2 || parts[1].startsWith("-")) {
+                    appendTerminalOutput(`<span class="text-red-400">nano: gunakan format 'nano &lt;nama_berkas&gt;'</span>`);
                     return false;
                 }
-                openNanoEditor(fileArg);
+                openNanoEditor(parts[1]);
                 return true;
             }
             if (base === "chmod") {
+                if (parts.length !== 3) {
+                    appendTerminalOutput(`<span class="text-red-400">chmod: gunakan format 'chmod +x &lt;nama_berkas&gt;'</span>`);
+                    return false;
+                }
                 const mode = parts[1];
                 const fileArg = parts[2];
-                if ((mode !== "+x" && mode !== "755" && mode !== "777") || !fileArg) {
-                    appendTerminalOutput(`<span class="text-red-400">chmod: gunakan format 'chmod +x &lt;nama_berkas&gt;'</span>`);
+                if ((mode !== "+x" && mode !== "u+x" && mode !== "a+x" && mode !== "755" && mode !== "777") || !fileArg) {
+                    appendTerminalOutput(`<span class="text-red-400">chmod: mode izin tidak valid '${escapeHtml(mode)}'. Gunakan 'chmod +x &lt;nama_berkas&gt;'</span>`);
                     return false;
                 }
                 const key = resolveFileKey(fileArg);
@@ -2984,53 +3326,43 @@ CREATE POLICY "Allow public full access on posttest_students"
                 return true;
             }
             if (base === "rm") {
-                const target = parts[parts.length - 1];
+                if (parts.length !== 2) {
+                    appendTerminalOutput(`<span class="text-red-400">rm: gunakan format 'rm &lt;nama_berkas&gt;'</span>`);
+                    return false;
+                }
+                const target = parts[1];
                 const key = resolveFileKey(target);
+                if (!currentSession.vfs[key]) {
+                    appendTerminalOutput(`<span class="text-red-400">rm: cannot remove '${escapeHtml(target)}': No such file or directory</span>`);
+                    return false;
+                }
                 delete currentSession.vfs[key];
                 return true;
             }
 
             // Perintah penghasil output teks (`echo`, `cat`, `sort`, `grep`, `wc`, `ls`)
-            const outText = evaluateCommandTextOutput(cleanCmd, inputRedirectFile);
-            if (outText === null) return false;
+            const evalResult = evaluateCommandTextOutput(cleanCmd, inputRedirectFile);
+            if (!evalResult || evalResult.text === null) return false;
 
-            return outputOrRedirect(outText, redirectFile, isAppend, pipeToTeeFile);
+            return outputOrRedirect(evalResult.text, redirectFile, isAppend, pipeToTeeFile, evalResult.meta);
         }
 
-        function outputOrRedirect(text, redirectFile, isAppend, pipeToTeeFile) {
+        function outputOrRedirect(text, redirectFile, isAppend, pipeToTeeFile, originMeta = null) {
             if (pipeToTeeFile) {
-                writeVfsFile(pipeToTeeFile, text, false);
+                writeVfsFile(pipeToTeeFile, text, false, { ...(originMeta || {}), via: "tee" });
                 if (text !== "") {
                     appendTerminalOutput(`<pre class="text-gray-200 font-mono text-xs whitespace-pre-wrap">${escapeHtml(text)}</pre>`);
                 }
                 return true;
             }
             if (redirectFile) {
-                writeVfsFile(redirectFile, text, isAppend);
+                writeVfsFile(redirectFile, text, isAppend, { ...(originMeta || {}), via: isAppend ? "append" : "redirect" });
                 return true;
             }
             if (text !== "") {
                 appendTerminalOutput(`<pre class="text-gray-200 font-mono text-xs whitespace-pre-wrap">${escapeHtml(text)}</pre>`);
             }
             return true;
-        }
-
-        function runAtomicCommandForOutput(cmdStr) {
-            return evaluateCommandTextOutput(cmdStr, null);
-        }
-
-        function handleRedirectionAndPrint(remainderStr, textContent, pipeToTeeFile) {
-            let redirectFile = null;
-            let isAppend = false;
-            const appendMatch = remainderStr.match(/>>\s*([^\s>]+)/);
-            const writeMatch = remainderStr.match(/>\s*([^\s>]+)/);
-            if (appendMatch) {
-                redirectFile = appendMatch[1];
-                isAppend = true;
-            } else if (writeMatch) {
-                redirectFile = writeMatch[1];
-            }
-            return outputOrRedirect(textContent, redirectFile, isAppend, pipeToTeeFile);
         }
 
         function evaluateCommandTextOutput(cleanCmd, inputRedirectFile) {
@@ -3042,15 +3374,26 @@ CREATE POLICY "Allow public full access on posttest_students"
                 let rawArg = cleanCmd.slice(4).trim();
                 if ((rawArg.startsWith('"') && rawArg.endsWith('"')) || (rawArg.startsWith("'") && rawArg.endsWith("'"))) {
                     rawArg = rawArg.slice(1, -1);
+                } else if (/[><|&]/.test(rawArg)) {
+                    appendTerminalOutput(`<span class="text-red-400">bash: syntax error near unexpected token pada argumen echo</span>`);
+                    return null;
                 }
-                return rawArg;
+                return { text: rawArg, meta: { cmd: "echo" } };
             }
 
             // 2. CAT
             if (base === "cat") {
+                if (parts.length > 2 || (parts.length === 2 && inputRedirectFile)) {
+                    appendTerminalOutput(`<span class="text-red-400">cat: terlalu banyak argumen berkas</span>`);
+                    return null;
+                }
                 const fileName = parts[1] || inputRedirectFile;
                 if (!fileName) {
                     appendTerminalOutput(`<span class="text-red-400">cat: missing file operand</span>`);
+                    return null;
+                }
+                if (fileName.startsWith("-")) {
+                    appendTerminalOutput(`<span class="text-red-400">cat: invalid option -- '${escapeHtml(fileName)}'</span>`);
                     return null;
                 }
                 const content = readVfsFileContent(fileName);
@@ -3058,17 +3401,26 @@ CREATE POLICY "Allow public full access on posttest_students"
                     appendTerminalOutput(`<span class="text-red-400">cat: ${escapeHtml(fileName)}: No such file or directory</span>`);
                     return null;
                 }
-                if (fileName.replace(/^\.\//, "") === "status.txt") {
+                const cleanSource = fileName.replace(/^\.\//, "");
+                if (cleanSource === "status.txt") {
                     currentSession.stats.lastCatStatus = true;
                 }
-                return content;
+                return { text: content, meta: { cmd: "cat", sourceFile: cleanSource } };
             }
 
             // 3. SORT
             if (base === "sort") {
+                if (parts.length > 2 || (parts.length === 2 && inputRedirectFile)) {
+                    appendTerminalOutput(`<span class="text-red-400">sort: gunakan format 'sort &lt;nama_berkas&gt; &gt; &lt;berkas_tujuan&gt;'</span>`);
+                    return null;
+                }
                 const fileName = parts[1] || inputRedirectFile;
                 if (!fileName) {
                     appendTerminalOutput(`<span class="text-red-400">sort: missing file operand</span>`);
+                    return null;
+                }
+                if (fileName.startsWith("-")) {
+                    appendTerminalOutput(`<span class="text-red-400">sort: opsi '${escapeHtml(fileName)}' tidak diperlukan, urutkan langsung berkasnya</span>`);
                     return null;
                 }
                 const content = readVfsFileContent(fileName);
@@ -3077,19 +3429,20 @@ CREATE POLICY "Allow public full access on posttest_students"
                     return null;
                 }
                 const sorted = getTrimmedLines(content).sort((a, b) => a.localeCompare(b));
-                return sorted.join("\n");
+                return { text: sorted.join("\n"), meta: { cmd: "sort", sourceFile: fileName.replace(/^\.\//, "") } };
             }
 
             // 4. GREP
             if (base === "grep") {
-                // Parse pattern & filename: mendukung spasi dengan atau tanpa tanda kutip
-                const grepMatch = cleanCmd.match(/^grep\s+(?:-[a-zA-Z]+\s+)?(?:"([^"]+)"|'([^']+)'|(.+?))\s+(\S+)$/);
+                // Hanya izinkan pola ter-quote ("..." atau '...') atau satu token kata tanpa spasi diikuti tepat satu nama berkas
+                const grepMatch = cleanCmd.match(/^grep\s+(?:(-i|-w|-e)\s+)?(?:"([^"]+)"|'([^']+)'|([^\s"']+))\s+([^\s"']+)$/);
                 if (!grepMatch) {
-                    appendTerminalOutput(`<span class="text-red-400">grep: format perintah kurang tepat.</span>`);
+                    appendTerminalOutput(`<span class="text-red-400">grep: syntax error. Gunakan tanda kutip jika pola pencarian mengandung spasi: grep "Pola" nama_berkas</span>`);
                     return null;
                 }
-                const pattern = grepMatch[1] || grepMatch[2] || grepMatch[3];
-                const fileName = grepMatch[4];
+                const flag = grepMatch[1] || "";
+                const pattern = grepMatch[2] || grepMatch[3] || grepMatch[4];
+                const fileName = grepMatch[5];
                 const content = readVfsFileContent(fileName);
                 if (content === null) {
                     appendTerminalOutput(`<span class="text-red-400">grep: ${escapeHtml(fileName)}: No such file or directory</span>`);
@@ -3098,48 +3451,88 @@ CREATE POLICY "Allow public full access on posttest_students"
                 const lines = getTrimmedLines(content);
                 let regex;
                 try {
-                    regex = new RegExp(pattern);
+                    regex = new RegExp(pattern, flag === "-i" ? "i" : "");
                 } catch (err) {
                     regex = null;
                 }
                 const matched = lines.filter(line => regex ? regex.test(line) : line.includes(pattern));
-                return matched.join("\n");
+                return {
+                    text: matched.join("\n"),
+                    meta: { cmd: "grep", pattern, sourceFile: fileName.replace(/^\.\//, "") }
+                };
             }
 
-            // 5. WC -L
+            // 5. WC -L (Sesuai perilaku asli Linux Ubuntu!)
+            // - `wc -l < berkas.txt` menghasilkan HANYA angka (wc_pure)
+            // - `wc -l berkas.txt` menghasilkan `<angka> <nama_berkas>` (wc_with_filename)
             if (base === "wc") {
                 const flag = parts[1];
-                const fileArg = parts[2] || inputRedirectFile;
-                if (flag !== "-l" || !fileArg) {
-                    appendTerminalOutput(`<span class="text-red-400">wc: gunakan 'wc -l &lt; nama_berkas'</span>`);
+                if (flag !== "-l") {
+                    appendTerminalOutput(`<span class="text-red-400">wc: gunakan opsi '-l' untuk menghitung baris (contoh: wc -l &lt; nama_berkas)</span>`);
                     return null;
                 }
-                const content = readVfsFileContent(fileArg);
+                if (parts.length > 3 || (parts.length === 3 && inputRedirectFile)) {
+                    appendTerminalOutput(`<span class="text-red-400">wc: terlalu banyak argumen</span>`);
+                    return null;
+                }
+                const directFileArg = parts[2] || null;
+                const targetFile = directFileArg || inputRedirectFile;
+                if (!targetFile) {
+                    appendTerminalOutput(`<span class="text-red-400">wc: berkas input belum ditentukan (gunakan 'wc -l &lt; nama_berkas')</span>`);
+                    return null;
+                }
+                const content = readVfsFileContent(targetFile);
                 if (content === null) {
-                    appendTerminalOutput(`<span class="text-red-400">bash: ${escapeHtml(fileArg)}: No such file or directory</span>`);
+                    appendTerminalOutput(`<span class="text-red-400">bash: ${escapeHtml(targetFile)}: No such file or directory</span>`);
                     return null;
                 }
                 const count = getTrimmedLines(content).length;
-                return String(count);
+                if (inputRedirectFile && !directFileArg) {
+                    return {
+                        text: String(count),
+                        meta: { cmd: "wc_pure", sourceFile: inputRedirectFile.replace(/^\.\//, "") }
+                    };
+                } else {
+                    // Perilaku asli Linux: `wc -l katalog.txt` mencetak angka diikuti nama berkas!
+                    return {
+                        text: `${count} ${directFileArg}`,
+                        meta: { cmd: "wc_with_filename", sourceFile: directFileArg.replace(/^\.\//, "") }
+                    };
+                }
             }
 
             // 6. LS / LS -L
             if (base === "ls") {
+                for (let i = 1; i < parts.length; i++) {
+                    if (parts[i] !== "-l" && parts[i] !== "-a" && parts[i] !== "-la" && parts[i] !== "-al") {
+                        appendTerminalOutput(`<span class="text-red-400">ls: argumen atau opsi '${escapeHtml(parts[i])}' tidak valid pada tahap ini</span>`);
+                        return null;
+                    }
+                }
                 const isLong = parts.includes("-l") || parts.includes("-la") || parts.includes("-al");
                 const prefix = currentSession.cwd + "/";
                 const files = Object.keys(currentSession.vfs)
                     .filter(k => k.startsWith(prefix))
                     .map(k => ({ name: k.slice(prefix.length), ...currentSession.vfs[k] }));
 
-                if (files.length === 0) return "";
-                if (!isLong) {
-                    return files.map(f => f.name).join("  ");
+                if (files.length === 0) {
+                    return { text: "", meta: { cmd: isLong ? "ls_long" : "ls_short" } };
                 }
-                return files.map(f => {
+                if (!isLong) {
+                    return {
+                        text: files.map(f => f.name).join("  "),
+                        meta: { cmd: "ls_short" }
+                    };
+                }
+                const longOut = files.map(f => {
                     const perm = f.executable ? "-rwxr-xr-x" : "-rw-r--r--";
                     const size = (f.content || "").length;
                     return `${perm} 1 praktikan praktikan ${String(size).padStart(4, " ")} Nov 17 09:30 ${f.name}`;
                 }).join("\n");
+                return {
+                    text: longOut,
+                    meta: { cmd: "ls_long" }
+                };
             }
 
             appendTerminalOutput(`<span class="text-red-400">${escapeHtml(base)}: command not found</span>`);
@@ -3151,11 +3544,21 @@ CREATE POLICY "Allow public full access on posttest_students"
         // =====================================================
         function handleScriptExecutionCommand(segmentStr, pipeToTeeFile) {
             let redirectFile = null;
+            let isAppend = false;
             let cleanSeg = segmentStr;
-            const redirMatch = cleanSeg.match(/^(.*?)\s*>\s*([^\s>]+)\s*$/);
-            if (redirMatch) {
-                cleanSeg = redirMatch[1].trim();
-                redirectFile = redirMatch[2].trim();
+
+            const appendMatch = cleanSeg.match(/^(.*?)\s*>>\s*([^\s><|&]+)\s*$/);
+            if (appendMatch) {
+                cleanSeg = appendMatch[1].trim();
+                redirectFile = appendMatch[2].trim();
+                isAppend = true;
+            } else {
+                const redirMatch = cleanSeg.match(/^(.*?)\s*>\s*([^\s><|&]+)\s*$/);
+                if (redirMatch) {
+                    cleanSeg = redirMatch[1].trim();
+                    redirectFile = redirMatch[2].trim();
+                    isAppend = false;
+                }
             }
 
             const parts = cleanSeg.split(/\s+/);
@@ -3164,9 +3567,17 @@ CREATE POLICY "Allow public full access on posttest_students"
             let invokedViaBash = false;
 
             if (cleanSeg.startsWith("./")) {
+                if (parts.length > 1) {
+                    appendTerminalOutput(`<span class="text-red-400">bash: ${escapeHtml(parts[0])}: tidak menerima argumen tambahan pada baris perintah</span>`);
+                    return false;
+                }
                 scriptName = parts[0].slice(2);
                 requireExec = true;
             } else {
+                if (parts.length !== 2) {
+                    appendTerminalOutput(`<span class="text-red-400">bash: gunakan format 'bash &lt;nama_skrip.sh&gt;'</span>`);
+                    return false;
+                }
                 scriptName = (parts[1] || "").replace(/^\.\//, "");
                 invokedViaBash = true;
             }
@@ -3178,7 +3589,14 @@ CREATE POLICY "Allow public full access on posttest_students"
                 return false;
             }
             if (requireExec && !scriptObj.executable) {
-                appendTerminalOutput(`<span class="text-red-400">bash: ./${escapeHtml(scriptName)}: Permission denied (Pastikan izin eksekusi telah diberikan!)</span>`);
+                appendTerminalOutput(`<span class="text-red-400">bash: ./${escapeHtml(scriptName)}: Permission denied (Pastikan izin eksekusi 'chmod +x ${escapeHtml(scriptName)}' telah diberikan!)</span>`);
+                return false;
+            }
+
+            // Validasi sintaks & struktur logika isi skrip sebelum dieksekusi!
+            const syntaxCheck = validateBashScriptSyntax(scriptName, scriptObj.content);
+            if (!syntaxCheck.valid) {
+                appendTerminalOutput(`<span class="text-red-400">bash: ${escapeHtml(scriptName)}: syntax/logic error — ${escapeHtml(syntaxCheck.reason)}</span>`);
                 return false;
             }
 
@@ -3199,15 +3617,25 @@ CREATE POLICY "Allow public full access on posttest_students"
 
             // 2. Skrip Non-Interaktif: `sisa.sh` (Paket 1)
             if (scriptName === "sisa.sh") {
-                const total = parseInt(readVfsFileContent("total_buku.txt") || "0", 10);
-                const pinjam = parseInt(readVfsFileContent("jml_pinjam.txt") || "0", 10);
+                const totalRaw = readVfsFileContent("total_buku.txt");
+                const pinjamRaw = readVfsFileContent("jml_pinjam.txt");
+                if (totalRaw === null || pinjamRaw === null) {
+                    appendTerminalOutput(`<span class="text-red-400">cat: total_buku.txt / jml_pinjam.txt: No such file or directory</span>`);
+                    return false;
+                }
+                const total = parseInt(totalRaw.trim(), 10);
+                const pinjam = parseInt(pinjamRaw.trim(), 10);
+                if (isNaN(total) || isNaN(pinjam)) {
+                    appendTerminalOutput(`<span class="text-red-400">bash: sisa.sh: nilai di total_buku.txt atau jml_pinjam.txt bukan angka murni</span>`);
+                    return false;
+                }
                 const sisa = total - pinjam;
                 let outLines = [`Buku tersedia: ${sisa}`];
                 if (sisa <= 3) {
                     outLines.push("Stok menipis");
                 }
                 const finalOut = outLines.join("\n");
-                return outputOrRedirect(finalOut, redirectFile, false, pipeToTeeFile);
+                return outputOrRedirect(finalOut, redirectFile, isAppend, pipeToTeeFile, { cmd: "sisa.sh" });
             }
 
             // 3. Skrip Interaktif: `absen.sh` (Paket 2)
@@ -3227,8 +3655,17 @@ CREATE POLICY "Allow public full access on posttest_students"
 
             // 4. Skrip Non-Interaktif: `cek.sh` (Paket 2)
             if (scriptName === "cek.sh") {
-                const jumlah = parseInt(readVfsFileContent("jumlah.txt") || "0", 10);
-                const hadirContent = readVfsFileContent("hadir.txt") || "";
+                const jumlahRaw = readVfsFileContent("jumlah.txt");
+                const hadirContent = readVfsFileContent("hadir.txt");
+                if (jumlahRaw === null || hadirContent === null) {
+                    appendTerminalOutput(`<span class="text-red-400">cat: jumlah.txt / hadir.txt: No such file or directory</span>`);
+                    return false;
+                }
+                const jumlah = parseInt(jumlahRaw.trim(), 10);
+                if (isNaN(jumlah)) {
+                    appendTerminalOutput(`<span class="text-red-400">bash: cek.sh: isi jumlah.txt bukan angka murni</span>`);
+                    return false;
+                }
                 const hadir = getTrimmedLines(hadirContent).length;
                 let finalOut = "";
                 if (hadir >= jumlah) {
@@ -3236,7 +3673,7 @@ CREATE POLICY "Allow public full access on posttest_students"
                 } else {
                     finalOut = `Belum lengkap, kurang ${jumlah - hadir} orang`;
                 }
-                return outputOrRedirect(finalOut, redirectFile, false, pipeToTeeFile);
+                return outputOrRedirect(finalOut, redirectFile, isAppend, pipeToTeeFile, { cmd: "cek.sh" });
             }
 
             // 5. Skrip Interaktif Multi-Input: `nilai.sh` (Paket 3)
@@ -3265,10 +3702,15 @@ CREATE POLICY "Allow public full access on posttest_students"
             if (p.scriptName === "pinjam.sh") {
                 const katalogContent = readVfsFileContent("katalog.txt") || "";
                 const lines = getTrimmedLines(katalogContent);
-                const found = userInput.length > 0 && lines.some(l => l.toLowerCase().includes(userInput.toLowerCase()));
+                const trimmedInput = userInput.trim();
+                // Cocokkan dengan judul buku (bagian sebelum ':') atau baris di katalog.txt
+                const found = trimmedInput.length > 0 && lines.some(l => {
+                    const titlePart = (l.split(":")[0] || "").trim().toLowerCase();
+                    return titlePart === trimmedInput.toLowerCase() || l.toLowerCase().includes(trimmedInput.toLowerCase());
+                });
 
                 if (found) {
-                    writeVfsFile("pinjam.txt", userInput, true);
+                    writeVfsFile("pinjam.txt", trimmedInput, true, { cmd: "pinjam.sh" });
                     appendTerminalOutput(`<span class="text-emerald-300">Peminjaman dicatat</span>`);
                     currentSession.stats.pinjamRuns.foundCount++;
                 } else {
@@ -3283,8 +3725,14 @@ CREATE POLICY "Allow public full access on posttest_students"
             }
 
             if (p.scriptName === "absen.sh") {
-                const nama = userInput || "Peserta";
-                writeVfsFile("hadir.txt", nama, true);
+                const nama = userInput.trim();
+                if (!nama) {
+                    appendTerminalOutput(`<span class="text-red-400">absen.sh: nama peserta tidak boleh kosong!</span>`);
+                    p.active = false;
+                    updateTerminalPromptUI();
+                    return;
+                }
+                writeVfsFile("hadir.txt", nama, true, { cmd: "absen.sh" });
                 appendTerminalOutput(`<span class="text-emerald-300">Halo ${escapeHtml(nama)}, kehadiran Anda tercatat</span>`);
 
                 currentSession.stats.absenRuns.totalRuns++;
@@ -3299,28 +3747,56 @@ CREATE POLICY "Allow public full access on posttest_students"
 
             if (p.scriptName === "nilai.sh") {
                 if (p.step === 1) {
-                    p.tempData.nama = userInput || "Praktikan";
+                    const nama = userInput.trim();
+                    if (!nama) {
+                        appendTerminalOutput(`<span class="text-red-400">nilai.sh: nama praktikan tidak boleh kosong!</span>`);
+                        p.active = false;
+                        updateTerminalPromptUI();
+                        return;
+                    }
+                    p.tempData.nama = nama;
                     p.step = 2;
                     p.promptText = "Nilai Laporan: ";
                     updateTerminalPromptUI();
                     return;
                 }
                 if (p.step === 2) {
-                    p.tempData.laporan = parseInt(userInput, 10) || 0;
+                    const val = Number(userInput.trim());
+                    if (userInput.trim() === "" || isNaN(val) || val < 0 || val > 100) {
+                        appendTerminalOutput(`<span class="text-red-400">nilai.sh: masukkan angka nilai yang valid (0 - 100)!</span>`);
+                        p.active = false;
+                        updateTerminalPromptUI();
+                        return;
+                    }
+                    p.tempData.laporan = Math.floor(val);
                     p.step = 3;
                     p.promptText = "Nilai Posttest: ";
                     updateTerminalPromptUI();
                     return;
                 }
                 if (p.step === 3) {
-                    p.tempData.posttest = parseInt(userInput, 10) || 0;
+                    const val = Number(userInput.trim());
+                    if (userInput.trim() === "" || isNaN(val) || val < 0 || val > 100) {
+                        appendTerminalOutput(`<span class="text-red-400">nilai.sh: masukkan angka nilai yang valid (0 - 100)!</span>`);
+                        p.active = false;
+                        updateTerminalPromptUI();
+                        return;
+                    }
+                    p.tempData.posttest = Math.floor(val);
                     p.step = 4;
                     p.promptText = "Nilai Praktik: ";
                     updateTerminalPromptUI();
                     return;
                 }
                 if (p.step === 4) {
-                    p.tempData.praktik = parseInt(userInput, 10) || 0;
+                    const val = Number(userInput.trim());
+                    if (userInput.trim() === "" || isNaN(val) || val < 0 || val > 100) {
+                        appendTerminalOutput(`<span class="text-red-400">nilai.sh: masukkan angka nilai yang valid (0 - 100)!</span>`);
+                        p.active = false;
+                        updateTerminalPromptUI();
+                        return;
+                    }
+                    p.tempData.praktik = Math.floor(val);
                     const { nama, laporan, posttest, praktik } = p.tempData;
                     const nilai = Math.floor((laporan * 30) / 100) + Math.floor((posttest * 30) / 100) + Math.floor((praktik * 40) / 100);
                     let grade = "C";
@@ -3330,7 +3806,7 @@ CREATE POLICY "Allow public full access on posttest_students"
                     appendTerminalOutput(`<span class="text-white">Nilai akhir ${escapeHtml(nama)}: ${nilai}</span>`);
                     appendTerminalOutput(`<span class="text-emerald-300 font-bold">Grade: ${grade}</span>`);
 
-                    writeVfsFile("rekap.txt", `${nama}:${nilai}:${grade}`, true);
+                    writeVfsFile("rekap.txt", `${nama}:${nilai}:${grade}`, true, { cmd: "nilai.sh" });
                     currentSession.stats.nilaiRuns.count++;
                     if (grade === "A") currentSession.stats.nilaiRuns.hasGradeA = true;
 
@@ -3378,8 +3854,15 @@ CREATE POLICY "Allow public full access on posttest_students"
                 return;
             }
 
-            writeVfsFile(fileName, content, false);
+            writeVfsFile(fileName, content, false, { cmd: "nano" });
             appendTerminalOutput(`<span class="text-gray-400">[GNU nano] Berkas <code>${escapeHtml(fileName)}</code> disimpan (${content.split("\n").length} baris).</span>`);
+
+            if (fileName.endsWith(".sh")) {
+                const syntaxCheck = validateBashScriptSyntax(fileName, content);
+                if (!syntaxCheck.valid) {
+                    appendTerminalOutput(`<span class="text-amber-300">[Perhatian Skrip ${escapeHtml(fileName)}] ${escapeHtml(syntaxCheck.reason)}</span>`);
+                }
+            }
 
             const overlay = document.getElementById("nanoEditorOverlay");
             overlay.classList.add("hidden");
