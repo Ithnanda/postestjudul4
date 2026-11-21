@@ -1565,26 +1565,126 @@ CREATE POLICY "Allow public full access on posttest_students"
             }
         }
 
+        function buildSupabaseHeaders(anonKey, extra = {}) {
+            const cleanKey = (anonKey || "").trim();
+            const headers = {
+                apikey: cleanKey,
+                "Content-Type": "application/json",
+                ...extra
+            };
+            // Hanya gunakan Authorization Bearer untuk JWT klasik (eyJ...), bukan sb_publishable_...
+            if (cleanKey.startsWith("eyJ")) {
+                headers.Authorization = `Bearer ${cleanKey}`;
+            }
+            return headers;
+        }
+
+        function isFinishedStudentStatus(st) {
+            const ts = String((st && st.timestamp) || "");
+            return ts.startsWith("Sesi Selesai") || ts.startsWith("Selesai");
+        }
+
+        function shouldReplaceStudentRecord(current, candidate) {
+            if (!current) return true;
+            if (!candidate) return false;
+            const currDone = Number(current.completedTasks) || 0;
+            const candDone = Number(candidate.completedTasks) || 0;
+            if (candDone > currDone) return true;
+            if (candDone < currDone) return false;
+
+            const currFin = isFinishedStudentStatus(current);
+            const candFin = isFinishedStudentStatus(candidate);
+            if (candFin && !currFin) return true;
+            if (!candFin && currFin) return false;
+
+            const currTime = current.updatedAt ? Date.parse(current.updatedAt) : 0;
+            const candTime = candidate.updatedAt ? Date.parse(candidate.updatedAt) : 0;
+            if (!isNaN(candTime) && !isNaN(currTime) && candTime !== currTime) {
+                return candTime > currTime;
+            }
+            return false;
+        }
+
+        function mergeStudentLists(primaryList, secondaryList) {
+            const mergedMap = new Map();
+            const applyList = (arr) => {
+                if (!Array.isArray(arr)) return;
+                arr.forEach(item => {
+                    if (!item) return;
+                    const key = item.npm || item.id;
+                    if (!key) return;
+                    const existing = mergedMap.get(key);
+                    if (!existing || shouldReplaceStudentRecord(existing, item)) {
+                        mergedMap.set(key, {
+                            ...item,
+                            paket: (item.paket && item.paket !== "-") ? item.paket : ((existing && existing.paket) || "-")
+                        });
+                    } else if ((!existing.paket || existing.paket === "-") && item.paket && item.paket !== "-") {
+                        mergedMap.set(key, { ...existing, paket: item.paket });
+                    }
+                });
+            };
+            applyList(primaryList);
+            applyList(secondaryList);
+            return Array.from(mergedMap.values());
+        }
+
+        async function pushMissingStudentsToSupabase(sb, cloudList, mergedList) {
+            if (!sb || !Array.isArray(mergedList) || mergedList.length === 0) return;
+            const cloudMap = new Map((Array.isArray(cloudList) ? cloudList : []).map(s => [s.npm || s.id, s]));
+            const toSync = mergedList.filter(st => {
+                const key = st.npm || st.id;
+                if (!key || !st.npm) return false;
+                const cloudItem = cloudMap.get(key);
+                return !cloudItem || shouldReplaceStudentRecord(cloudItem, st);
+            });
+            if (toSync.length === 0) return;
+
+            try {
+                const headers = buildSupabaseHeaders(sb.anonKey, {
+                    Prefer: "resolution=merge-duplicates,return=minimal"
+                });
+                const rows = toSync.map(st => {
+                    const done = typeof st.completedTasks === "number" ? st.completedTasks : 0;
+                    return {
+                        npm: st.npm,
+                        id: st.id || ("st-" + Date.now()),
+                        nama: st.nama,
+                        kelas: st.kelas,
+                        paket: st.paket || "-",
+                        completed_tasks: done,
+                        score: calculateFinalScore(done),
+                        timestamp: st.timestamp || "Selesai",
+                        updated_at: st.updatedAt || new Date().toISOString()
+                    };
+                });
+                await fetch(`${sb.url}/rest/v1/posttest_students?on_conflict=npm`, {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify(rows)
+                });
+            } catch (err) {
+                // Abaikan jika sinkronisasi latar belakang gagal
+            }
+        }
+
         // Sinkronisasi ke Supabase REST API langsung (atau fallback ke /api/sync di Vercel)
         async function fetchCloudState() {
             const sb = getSupabaseConfig();
+            let sbStatusText = "";
+            let sbGotStudents = false;
+
             if (sb) {
                 try {
-                    const headers = {
-                        apikey: sb.anonKey,
-                        Authorization: `Bearer ${sb.anonKey}`,
-                        "Content-Type": "application/json"
-                    };
+                    const headers = buildSupabaseHeaders(sb.anonKey);
 
                     const [tokRes, stuRes] = await Promise.all([
                         fetch(`${sb.url}/rest/v1/posttest_tokens?select=*`, { headers, cache: "no-store" }),
                         fetch(`${sb.url}/rest/v1/posttest_students?select=*&order=updated_at.desc`, { headers, cache: "no-store" })
                     ]);
 
-                    if (tokRes.ok && stuRes.ok) {
+                    if (tokRes.ok) {
                         const tokRows = await tokRes.json();
-                        const stuRows = await stuRes.json();
-
                         if (Array.isArray(tokRows) && tokRows.length > 0) {
                             tokRows.forEach(r => {
                                 if (r.kelas && classTokens[r.kelas]) {
@@ -1597,7 +1697,10 @@ CREATE POLICY "Allow public full access on posttest_students"
                             });
                             localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(classTokens));
                         }
+                    }
 
+                    if (stuRes.ok) {
+                        const stuRows = await stuRes.json();
                         if (Array.isArray(stuRows)) {
                             const cloudList = stuRows.map(r => ({
                                 id: r.id || ("st-" + r.npm),
@@ -1609,24 +1712,13 @@ CREATE POLICY "Allow public full access on posttest_students"
                                 timestamp: r.timestamp || "Selesai",
                                 updatedAt: r.updated_at || null
                             }));
-                            // Gabungkan data cloud dengan data lokal yang mungkin belum sempat ter-push agar tidak tertimpa kosong
-                            const mergedMap = new Map();
-                            cloudList.forEach(item => mergedMap.set(item.npm || item.id, item));
-                            studentsList.forEach(localSt => {
-                                const key = localSt.npm || localSt.id;
-                                if (!mergedMap.has(key)) {
-                                    mergedMap.set(key, localSt);
-                                } else {
-                                    const cloudItem = mergedMap.get(key);
-                                    if ((localSt.completedTasks || 0) > (cloudItem.completedTasks || 0)) {
-                                        mergedMap.set(key, localSt);
-                                    }
-                                }
-                            });
-                            studentsList = Array.from(mergedMap.values());
+                            const merged = mergeStudentLists(cloudList, studentsList);
+                            studentsList = merged;
                             localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
+                            pushMissingStudentsToSupabase(sb, cloudList, merged);
                         }
 
+                        sbGotStudents = true;
                         updateSupabaseBadgeUI(true, "Supabase: Terhubung");
                         if (isAdminLoggedIn && currentPortal === "admin") {
                             const activeId = document.activeElement?.id || "";
@@ -1637,9 +1729,11 @@ CREATE POLICY "Allow public full access on posttest_students"
                         }
                         return true;
                     } else if (tokRes.status === 404 || stuRes.status === 404) {
-                        updateSupabaseBadgeUI(false, "Supabase: Tabel Belum Dibuat (Klik Setup Supabase -> SQL)");
+                        sbStatusText = "Supabase: Tabel Belum Dibuat (Klik Setup Supabase -> SQL)";
+                        updateSupabaseBadgeUI(false, sbStatusText);
                     } else {
-                        updateSupabaseBadgeUI(false, `Supabase Error (${stuRes.status})`);
+                        sbStatusText = `Supabase Error (${stuRes.status})`;
+                        updateSupabaseBadgeUI(false, sbStatusText);
                     }
                 } catch (err) {
                     // Lanjut ke fallback /api/sync
@@ -1647,7 +1741,7 @@ CREATE POLICY "Allow public full access on posttest_students"
             }
 
             if (window.location.protocol === "file:") {
-                if (!isSupabaseConnected) {
+                if (!isSupabaseConnected && !sbStatusText) {
                     updateSupabaseBadgeUI(false, "Mode Lokal (Browser)");
                 }
                 if (isAdminLoggedIn && currentPortal === "admin") {
@@ -1666,22 +1760,12 @@ CREATE POLICY "Allow public full access on posttest_students"
                     localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(classTokens));
                 }
                 if (data && Array.isArray(data.students)) {
-                    const serverMap = new Map(data.students.map(s => [s.npm || s.id, s]));
-                    studentsList.forEach(localSt => {
-                        const key = localSt.npm || localSt.id;
-                        if (!serverMap.has(key)) {
-                            serverMap.set(key, localSt);
-                        } else {
-                            const srv = serverMap.get(key);
-                            if ((localSt.completedTasks || 0) > (srv.completedTasks || 0)) {
-                                serverMap.set(key, localSt);
-                            }
-                        }
-                    });
-                    studentsList = Array.from(serverMap.values());
+                    studentsList = mergeStudentLists(data.students, studentsList);
                     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
                 }
-                updateSupabaseBadgeUI(data && data.source === "supabase", data && data.source === "supabase" ? "Supabase (Vercel): Terhubung" : "Server Sinkronisasi: Aktif");
+                if (!sbGotStudents && !sbStatusText) {
+                    updateSupabaseBadgeUI(data && data.source === "supabase", data && data.source === "supabase" ? "Supabase (Vercel): Terhubung" : "Server Sinkronisasi: Aktif");
+                }
                 if (isAdminLoggedIn && currentPortal === "admin") {
                     const activeId = document.activeElement?.id || "";
                     if (!activeId.startsWith("tokenInput_")) {
@@ -1699,12 +1783,9 @@ CREATE POLICY "Allow public full access on posttest_students"
             const sb = getSupabaseConfig();
             if (sb) {
                 try {
-                    const headers = {
-                        apikey: sb.anonKey,
-                        Authorization: `Bearer ${sb.anonKey}`,
-                        "Content-Type": "application/json",
+                    const headers = buildSupabaseHeaders(sb.anonKey, {
                         Prefer: "resolution=merge-duplicates,return=minimal"
-                    };
+                    });
 
                     const { action } = actionPayload;
 
@@ -1723,7 +1804,7 @@ CREATE POLICY "Allow public full access on posttest_students"
                                 completed_tasks: done,
                                 score: calculateFinalScore(done),
                                 timestamp: st.timestamp || "Selesai",
-                                updated_at: new Date().toISOString()
+                                updated_at: st.updatedAt || new Date().toISOString()
                             })
                         });
                         if (res.ok) {
@@ -1738,7 +1819,7 @@ CREATE POLICY "Allow public full access on posttest_students"
                             : `id=eq.${encodeURIComponent(actionPayload.studentId)}`;
                         const res = await fetch(`${sb.url}/rest/v1/posttest_students?${filter}`, {
                             method: "DELETE",
-                            headers
+                            headers: buildSupabaseHeaders(sb.anonKey)
                         });
                         if (res.ok) return true;
                     }
@@ -1759,9 +1840,9 @@ CREATE POLICY "Allow public full access on posttest_students"
                     }
 
                     if (action === "reset_all") {
-                        await fetch(`${sb.url}/rest/v1/posttest_students?npm=neq.__NONE__`, {
+                        const delRes = await fetch(`${sb.url}/rest/v1/posttest_students?npm=neq.__NONE__`, {
                             method: "DELETE",
-                            headers
+                            headers: buildSupabaseHeaders(sb.anonKey)
                         });
                         const rows = Object.values(actionPayload.tokens || DEFAULT_TOKENS).map(t => ({
                             kelas: t.kelas,
@@ -1769,12 +1850,12 @@ CREATE POLICY "Allow public full access on posttest_students"
                             active: Boolean(t.active),
                             updated_at: new Date().toISOString()
                         }));
-                        await fetch(`${sb.url}/rest/v1/posttest_tokens?on_conflict=kelas`, {
+                        const tokRes = await fetch(`${sb.url}/rest/v1/posttest_tokens?on_conflict=kelas`, {
                             method: "POST",
                             headers,
                             body: JSON.stringify(rows)
                         });
-                        return true;
+                        if (delRes.ok && tokRes.ok) return true;
                     }
                 } catch (err) {
                     // Fallback ke /api/sync
@@ -1795,7 +1876,15 @@ CREATE POLICY "Allow public full access on posttest_students"
                     localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(classTokens));
                 }
                 if (data && Array.isArray(data.students)) {
-                    studentsList = data.students;
+                    if (actionPayload.action === "upsert_student") {
+                        studentsList = mergeStudentLists(data.students, studentsList);
+                    } else if (actionPayload.action === "delete_student") {
+                        studentsList = data.students.filter(
+                            s => s.id !== actionPayload.studentId && (!actionPayload.npm || s.npm !== actionPayload.npm)
+                        );
+                    } else if (actionPayload.action === "reset_all") {
+                        studentsList = data.students;
+                    }
                     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(studentsList));
                 }
                 if (isAdminLoggedIn && currentPortal === "admin") {
@@ -1973,7 +2062,13 @@ CREATE POLICY "Allow public full access on posttest_students"
                 btnPraktikan.className = "px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-2 text-gray-400 hover:text-white";
 
                 if (isAdminLoggedIn) {
-                    fetchCloudState();
+                    (async () => {
+                        if (currentSession.active && currentSession.npm) {
+                            const sessionMode = currentSession.completedTaskIds.size >= TOTAL_TASKS ? "Sesi Selesai" : "Sesi Aktif";
+                            await syncProgressToStudentRecord(sessionMode);
+                        }
+                        await fetchCloudState();
+                    })();
                     renderAdminDashboard();
                     vADash.classList.remove("hidden");
                 } else {
@@ -4668,6 +4763,10 @@ CREATE POLICY "Allow public full access on posttest_students"
             restoreActiveSessionFromStorage();
             syncTokenHelperSelection();
             attachTypingSoundListeners();
+            if (currentSession.active && currentSession.npm) {
+                const sessionMode = currentSession.completedTaskIds.size >= TOTAL_TASKS ? "Sesi Selesai" : "Sesi Aktif";
+                await syncProgressToStudentRecord(sessionMode);
+            }
             await fetchCloudState();
 
             // Sinkronisasi langsung antar-tab pada browser yang sama (ketika praktikan & admin dibuka di 2 tab berbeda)

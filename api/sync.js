@@ -43,50 +43,121 @@ function calculateScore(completedCount) {
     return Math.min(76, Math.max(60, score));
 }
 
+function buildSupabaseHeaders(key, extra = {}) {
+    const cleanKey = (key || "").trim();
+    const headers = {
+        apikey: cleanKey,
+        "Content-Type": "application/json",
+        ...extra
+    };
+    if (cleanKey.startsWith("eyJ")) {
+        headers.Authorization = `Bearer ${cleanKey}`;
+    }
+    return headers;
+}
+
+function isFinishedStudentStatus(st) {
+    const ts = String((st && st.timestamp) || "");
+    return ts.startsWith("Sesi Selesai") || ts.startsWith("Selesai");
+}
+
+function shouldReplaceStudent(current, candidate) {
+    if (!current) return true;
+    if (!candidate) return false;
+    const currDone = Number(current.completedTasks) || 0;
+    const candDone = Number(candidate.completedTasks) || 0;
+    if (candDone > currDone) return true;
+    if (candDone < currDone) return false;
+
+    const currFin = isFinishedStudentStatus(current);
+    const candFin = isFinishedStudentStatus(candidate);
+    if (candFin && !currFin) return true;
+    if (!candFin && currFin) return false;
+
+    const currTime = current.updatedAt ? Date.parse(current.updatedAt) : 0;
+    const candTime = candidate.updatedAt ? Date.parse(candidate.updatedAt) : 0;
+    if (!isNaN(candTime) && !isNaN(currTime) && candTime !== currTime) {
+        return candTime > currTime;
+    }
+    return false;
+}
+
+function mergeStudents(listA, listB) {
+    const mergedMap = new Map();
+    const applyList = (arr) => {
+        if (!Array.isArray(arr)) return;
+        arr.forEach(item => {
+            if (!item) return;
+            const key = item.npm || item.id;
+            if (!key) return;
+            const existing = mergedMap.get(key);
+            if (!existing || shouldReplaceStudent(existing, item)) {
+                mergedMap.set(key, {
+                    ...item,
+                    paket: (item.paket && item.paket !== "-") ? item.paket : ((existing && existing.paket) || "-")
+                });
+            } else if ((!existing.paket || existing.paket === "-") && item.paket && item.paket !== "-") {
+                mergedMap.set(key, { ...existing, paket: item.paket });
+            }
+        });
+    };
+    applyList(listA);
+    applyList(listB);
+    return Array.from(mergedMap.values());
+}
+
 async function readFromSupabase(sb) {
     try {
-        const headers = {
-            apikey: sb.key,
-            Authorization: `Bearer ${sb.key}`,
-            "Content-Type": "application/json"
-        };
+        const headers = buildSupabaseHeaders(sb.key);
 
         const [tokRes, stuRes] = await Promise.all([
             fetch(`${sb.url}/rest/v1/posttest_tokens?select=*`, { headers, cache: "no-store" }),
             fetch(`${sb.url}/rest/v1/posttest_students?select=*&order=updated_at.desc`, { headers, cache: "no-store" })
         ]);
 
-        if (!tokRes.ok || !stuRes.ok) return null;
-
-        const tokRows = await tokRes.json();
-        const stuRows = await stuRes.json();
-
-        const tokens = JSON.parse(JSON.stringify(DEFAULT_STATE.tokens));
-        if (Array.isArray(tokRows)) {
-            tokRows.forEach(r => {
-                if (r.kelas && tokens[r.kelas]) {
-                    tokens[r.kelas] = {
-                        kelas: r.kelas,
-                        token: r.token,
-                        active: Boolean(r.active)
-                    };
-                }
-            });
+        if (!tokRes.ok && !stuRes.ok) {
+            return null;
         }
 
-        const students = Array.isArray(stuRows)
-            ? stuRows.map(r => ({
-                  id: r.id || ("st-" + r.npm),
-                  nama: r.nama,
-                  npm: r.npm,
-                  kelas: r.kelas,
-                  paket: r.paket || "-",
-                  completedTasks: typeof r.completed_tasks === "number" ? r.completed_tasks : 0,
-                  timestamp: r.timestamp || "Selesai"
-              }))
-            : [];
+        let tokens = null;
+        let hasTokens = false;
+        if (tokRes.ok) {
+            const tokRows = await tokRes.json();
+            if (Array.isArray(tokRows) && tokRows.length > 0) {
+                tokens = JSON.parse(JSON.stringify(DEFAULT_STATE.tokens));
+                tokRows.forEach(r => {
+                    if (r.kelas && tokens[r.kelas]) {
+                        tokens[r.kelas] = {
+                            kelas: r.kelas,
+                            token: r.token,
+                            active: Boolean(r.active)
+                        };
+                    }
+                });
+                hasTokens = true;
+            }
+        }
 
-        return { tokens, students, source: "supabase" };
+        let students = [];
+        let hasStudents = false;
+        if (stuRes.ok) {
+            const stuRows = await stuRes.json();
+            if (Array.isArray(stuRows)) {
+                students = stuRows.map(r => ({
+                    id: r.id || ("st-" + r.npm),
+                    nama: r.nama,
+                    npm: r.npm,
+                    kelas: r.kelas,
+                    paket: r.paket || "-",
+                    completedTasks: typeof r.completed_tasks === "number" ? r.completed_tasks : 0,
+                    timestamp: r.timestamp || "Selesai",
+                    updatedAt: r.updated_at || null
+                }));
+                hasStudents = true;
+            }
+        }
+
+        return { tokens, students, hasTokens, hasStudents, source: "supabase" };
     } catch (err) {
         return null;
     }
@@ -133,23 +204,14 @@ async function writeToVercelKV(state) {
     }
 }
 
-async function loadState() {
-    const sb = getSupabaseEnv();
-    if (sb) {
-        const sbState = await readFromSupabase(sb);
-        if (sbState) {
-            global.__OSQUEST_STATE__ = sbState;
-            return sbState;
-        }
-    }
-
+async function loadFallbackState() {
     const kvState = await readFromVercelKV();
     if (kvState && kvState.tokens && Array.isArray(kvState.students)) {
-        global.__OSQUEST_STATE__ = kvState;
-        return kvState;
+        global.__OSQUEST_STATE__ = { tokens: kvState.tokens, students: kvState.students };
+        return global.__OSQUEST_STATE__;
     }
 
-    if (global.__OSQUEST_STATE__) {
+    if (global.__OSQUEST_STATE__ && global.__OSQUEST_STATE__.tokens && Array.isArray(global.__OSQUEST_STATE__.students)) {
         return global.__OSQUEST_STATE__;
     }
 
@@ -158,8 +220,8 @@ async function loadState() {
             const raw = fs.readFileSync(TMP_FILE, "utf8");
             const parsed = JSON.parse(raw);
             if (parsed && parsed.tokens && Array.isArray(parsed.students)) {
-                global.__OSQUEST_STATE__ = parsed;
-                return parsed;
+                global.__OSQUEST_STATE__ = { tokens: parsed.tokens, students: parsed.students };
+                return global.__OSQUEST_STATE__;
             }
         }
     } catch (err) {
@@ -170,14 +232,38 @@ async function loadState() {
     return global.__OSQUEST_STATE__;
 }
 
+async function loadState() {
+    const fallbackState = await loadFallbackState();
+    const sb = getSupabaseEnv();
+    if (sb) {
+        const sbState = await readFromSupabase(sb);
+        if (sbState) {
+            const tokens = sbState.hasTokens && sbState.tokens ? sbState.tokens : fallbackState.tokens;
+            const students = sbState.hasStudents
+                ? mergeStudents(sbState.students, fallbackState.students)
+                : fallbackState.students;
+            const combined = { tokens, students };
+            global.__OSQUEST_STATE__ = combined;
+            return { ...combined, source: sbState.hasStudents ? "supabase" : "fallback" };
+        }
+    }
+
+    return { ...fallbackState, source: "fallback" };
+}
+
 async function saveStateFallback(state) {
-    global.__OSQUEST_STATE__ = state;
+    const cleanState = {
+        tokens: state.tokens || JSON.parse(JSON.stringify(DEFAULT_STATE.tokens)),
+        students: Array.isArray(state.students) ? state.students : []
+    };
+    global.__OSQUEST_STATE__ = cleanState;
     try {
-        fs.writeFileSync(TMP_FILE, JSON.stringify(state), "utf8");
+        fs.writeFileSync(TMP_FILE, JSON.stringify(cleanState), "utf8");
     } catch (err) {
         // Ignore
     }
-    await writeToVercelKV(state);
+    await writeToVercelKV(cleanState);
+    return cleanState;
 }
 
 module.exports = async function handler(req, res) {
@@ -200,121 +286,158 @@ module.exports = async function handler(req, res) {
     if (req.method === "POST") {
         const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
         const { action } = body;
-
-        if (sb) {
-            const headers = {
-                apikey: sb.key,
-                Authorization: `Bearer ${sb.key}`,
-                "Content-Type": "application/json",
-                Prefer: "resolution=merge-duplicates,return=minimal"
-            };
-
-            if (action === "upsert_student" && body.student) {
-                const st = body.student;
-                const done = typeof st.completedTasks === "number" ? st.completedTasks : 0;
-                await fetch(`${sb.url}/rest/v1/posttest_students?on_conflict=npm`, {
-                    method: "POST",
-                    headers,
-                    body: JSON.stringify({
-                        npm: st.npm,
-                        id: st.id || ("st-" + Date.now()),
-                        nama: st.nama,
-                        kelas: st.kelas,
-                        paket: st.paket || "-",
-                        completed_tasks: done,
-                        score: calculateScore(done),
-                        timestamp: st.timestamp || "Selesai",
-                        updated_at: new Date().toISOString()
-                    })
-                });
-                const updated = await loadState();
-                return res.status(200).json(updated);
-            }
-
-            if (action === "delete_student") {
-                const filter = body.npm ? `npm=eq.${encodeURIComponent(body.npm)}` : `id=eq.${encodeURIComponent(body.studentId)}`;
-                await fetch(`${sb.url}/rest/v1/posttest_students?${filter}`, {
-                    method: "DELETE",
-                    headers
-                });
-                const updated = await loadState();
-                return res.status(200).json(updated);
-            }
-
-            if (action === "save_tokens" && body.tokens) {
-                const rows = Object.values(body.tokens).map(t => ({
-                    kelas: t.kelas,
-                    token: t.token,
-                    active: Boolean(t.active),
-                    updated_at: new Date().toISOString()
-                }));
-                await fetch(`${sb.url}/rest/v1/posttest_tokens?on_conflict=kelas`, {
-                    method: "POST",
-                    headers,
-                    body: JSON.stringify(rows)
-                });
-                const updated = await loadState();
-                return res.status(200).json(updated);
-            }
-
-            if (action === "reset_all") {
-                await fetch(`${sb.url}/rest/v1/posttest_students?npm=neq.__NONE__`, {
-                    method: "DELETE",
-                    headers
-                });
-                const defaultTokens = body.tokens || DEFAULT_STATE.tokens;
-                const rows = Object.values(defaultTokens).map(t => ({
-                    kelas: t.kelas,
-                    token: t.token,
-                    active: Boolean(t.active),
-                    updated_at: new Date().toISOString()
-                }));
-                await fetch(`${sb.url}/rest/v1/posttest_tokens?on_conflict=kelas`, {
-                    method: "POST",
-                    headers,
-                    body: JSON.stringify(rows)
-                });
-                const updated = await loadState();
-                return res.status(200).json(updated);
-            }
-        }
-
-        // Fallback apabila env Supabase di server belum diset
-        const state = await loadState();
+        const fallbackState = await loadFallbackState();
 
         if (action === "upsert_student" && body.student) {
-            const st = body.student;
-            const idx = state.students.findIndex(
+            const st = {
+                ...body.student,
+                updatedAt: body.student.updatedAt || new Date().toISOString()
+            };
+            const idx = fallbackState.students.findIndex(
                 s => (st.npm && s.npm === st.npm) || (st.id && s.id === st.id)
             );
             if (idx >= 0) {
-                state.students[idx] = { ...state.students[idx], ...st };
+                fallbackState.students[idx] = { ...fallbackState.students[idx], ...st };
             } else {
-                state.students.unshift(st);
+                fallbackState.students.unshift(st);
             }
-            await saveStateFallback(state);
-            return res.status(200).json(state);
+            await saveStateFallback(fallbackState);
+
+            let sbOk = false;
+            if (sb) {
+                try {
+                    const headers = buildSupabaseHeaders(sb.key, {
+                        Prefer: "resolution=merge-duplicates,return=minimal"
+                    });
+                    const done = typeof st.completedTasks === "number" ? st.completedTasks : 0;
+                    const sbRes = await fetch(`${sb.url}/rest/v1/posttest_students?on_conflict=npm`, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify({
+                            npm: st.npm,
+                            id: st.id || ("st-" + Date.now()),
+                            nama: st.nama,
+                            kelas: st.kelas,
+                            paket: st.paket || "-",
+                            completed_tasks: done,
+                            score: calculateScore(done),
+                            timestamp: st.timestamp || "Selesai",
+                            updated_at: st.updatedAt
+                        })
+                    });
+                    sbOk = sbRes.ok;
+                } catch (err) {
+                    sbOk = false;
+                }
+            }
+
+            if (sbOk) {
+                const updated = await loadState();
+                return res.status(200).json(updated);
+            }
+            return res.status(200).json({ ...fallbackState, source: "fallback" });
         }
 
         if (action === "delete_student") {
-            state.students = state.students.filter(
+            fallbackState.students = fallbackState.students.filter(
                 s => s.id !== body.studentId && (!body.npm || s.npm !== body.npm)
             );
-            await saveStateFallback(state);
-            return res.status(200).json(state);
+            await saveStateFallback(fallbackState);
+
+            let sbOk = false;
+            if (sb) {
+                try {
+                    const headers = buildSupabaseHeaders(sb.key);
+                    const filter = body.npm ? `npm=eq.${encodeURIComponent(body.npm)}` : `id=eq.${encodeURIComponent(body.studentId)}`;
+                    const sbRes = await fetch(`${sb.url}/rest/v1/posttest_students?${filter}`, {
+                        method: "DELETE",
+                        headers
+                    });
+                    sbOk = sbRes.ok;
+                } catch (err) {
+                    sbOk = false;
+                }
+            }
+
+            if (sbOk) {
+                const updated = await loadState();
+                return res.status(200).json(updated);
+            }
+            return res.status(200).json({ ...fallbackState, source: "fallback" });
         }
 
         if (action === "save_tokens" && body.tokens) {
-            state.tokens = body.tokens;
-            await saveStateFallback(state);
-            return res.status(200).json(state);
+            fallbackState.tokens = body.tokens;
+            await saveStateFallback(fallbackState);
+
+            let sbOk = false;
+            if (sb) {
+                try {
+                    const headers = buildSupabaseHeaders(sb.key, {
+                        Prefer: "resolution=merge-duplicates,return=minimal"
+                    });
+                    const rows = Object.values(body.tokens).map(t => ({
+                        kelas: t.kelas,
+                        token: t.token,
+                        active: Boolean(t.active),
+                        updated_at: new Date().toISOString()
+                    }));
+                    const sbRes = await fetch(`${sb.url}/rest/v1/posttest_tokens?on_conflict=kelas`, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify(rows)
+                    });
+                    sbOk = sbRes.ok;
+                } catch (err) {
+                    sbOk = false;
+                }
+            }
+
+            if (sbOk) {
+                const updated = await loadState();
+                return res.status(200).json(updated);
+            }
+            return res.status(200).json({ ...fallbackState, source: "fallback" });
         }
 
         if (action === "reset_all") {
-            state.tokens = body.tokens || JSON.parse(JSON.stringify(DEFAULT_STATE.tokens));
-            state.students = [];
-            await saveStateFallback(state);
-            return res.status(200).json(state);
+            const defaultTokens = body.tokens || JSON.parse(JSON.stringify(DEFAULT_STATE.tokens));
+            fallbackState.tokens = defaultTokens;
+            fallbackState.students = [];
+            await saveStateFallback(fallbackState);
+
+            let sbOk = false;
+            if (sb) {
+                try {
+                    const headers = buildSupabaseHeaders(sb.key, {
+                        Prefer: "resolution=merge-duplicates,return=minimal"
+                    });
+                    const delRes = await fetch(`${sb.url}/rest/v1/posttest_students?npm=neq.__NONE__`, {
+                        method: "DELETE",
+                        headers
+                    });
+                    const rows = Object.values(defaultTokens).map(t => ({
+                        kelas: t.kelas,
+                        token: t.token,
+                        active: Boolean(t.active),
+                        updated_at: new Date().toISOString()
+                    }));
+                    const tokRes = await fetch(`${sb.url}/rest/v1/posttest_tokens?on_conflict=kelas`, {
+                        method: "POST",
+                        headers,
+                        body: JSON.stringify(rows)
+                    });
+                    sbOk = delRes.ok && tokRes.ok;
+                } catch (err) {
+                    sbOk = false;
+                }
+            }
+
+            if (sbOk) {
+                const updated = await loadState();
+                return res.status(200).json(updated);
+            }
+            return res.status(200).json({ ...fallbackState, source: "fallback" });
         }
 
         return res.status(400).json({ error: "Invalid action" });
