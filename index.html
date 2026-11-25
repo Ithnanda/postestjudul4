@@ -1464,16 +1464,20 @@ CREATE TABLE IF NOT EXISTS public.posttest_students (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.posttest_tokens TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.posttest_students TO anon, authenticated;
+
 ALTER TABLE public.posttest_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.posttest_students ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public full access on posttest_tokens" ON public.posttest_tokens;
 CREATE POLICY "Allow public full access on posttest_tokens"
-    ON public.posttest_tokens FOR ALL USING (true) WITH CHECK (true);
+    ON public.posttest_tokens FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow public full access on posttest_students" ON public.posttest_students;
 CREATE POLICY "Allow public full access on posttest_students"
-    ON public.posttest_students FOR ALL USING (true) WITH CHECK (true);`;
+    ON public.posttest_students FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);`;
 
             openModal({
                 title: "SQL Setup Tabel Supabase",
@@ -1730,6 +1734,9 @@ CREATE POLICY "Allow public full access on posttest_students"
                         return true;
                     } else if (tokRes.status === 404 || stuRes.status === 404) {
                         sbStatusText = "Supabase: Tabel Belum Dibuat (Klik Setup Supabase -> SQL)";
+                        updateSupabaseBadgeUI(false, sbStatusText);
+                    } else if (stuRes.status === 401 || tokRes.status === 401) {
+                        sbStatusText = "Supabase Error (401): Jalankan GRANT SQL di Supabase";
                         updateSupabaseBadgeUI(false, sbStatusText);
                     } else {
                         sbStatusText = `Supabase Error (${stuRes.status})`;

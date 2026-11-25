@@ -33,7 +33,12 @@ CREATE TABLE IF NOT EXISTS public.posttest_students (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 3. Aktifkan Row Level Security (RLS) & Izinkan Akses Read/Write dari Web
+-- 3. Berikan Izin Akses Schema & Tabel ke Role `anon` dan `authenticated`
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.posttest_tokens TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.posttest_students TO anon, authenticated;
+
+-- 4. Aktifkan Row Level Security (RLS) & Izinkan Akses Read/Write dari Web
 ALTER TABLE public.posttest_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.posttest_students ENABLE ROW LEVEL SECURITY;
 
@@ -41,6 +46,7 @@ DROP POLICY IF EXISTS "Allow public full access on posttest_tokens" ON public.po
 CREATE POLICY "Allow public full access on posttest_tokens"
     ON public.posttest_tokens
     FOR ALL
+    TO anon, authenticated
     USING (true)
     WITH CHECK (true);
 
@@ -48,6 +54,7 @@ DROP POLICY IF EXISTS "Allow public full access on posttest_students" ON public.
 CREATE POLICY "Allow public full access on posttest_students"
     ON public.posttest_students
     FOR ALL
+    TO anon, authenticated
     USING (true)
     WITH CHECK (true);
 
